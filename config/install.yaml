@@ -1,0 +1,13 @@
+
+ XLite\Model\Payment\Method:
+  - service_name: CloverPayment
+    class: Iidev\CloverPayments\Model\Payment\Processor\CloverPayment
+    type: C
+    translations:
+      - code: en
+        name: Clover Payment
+    settings:
+      - name: login
+      - name: password
+      - name: mode
+        value: live

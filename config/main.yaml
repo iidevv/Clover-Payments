@@ -1,0 +1,10 @@
+version: 5.5.0.0
+type: payment
+authorName: 'Ilya I'
+moduleName: 'Clover payments'
+description: 'Clover integration'
+minorRequiredCoreVersion: 0 
+dependsOn: {  }
+incompatibleWith: {  }
+showSettingsForm: true
+canDisable: true

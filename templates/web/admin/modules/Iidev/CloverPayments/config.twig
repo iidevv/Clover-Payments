@@ -1,0 +1,57 @@
+{##
+ # CloverPayments configuration page
+ #}
+
+<ul class="table model-properties settings-table clover-payments">
+  <li>
+    {{ widget('XLite\\View\\FormField\\Input\\Text',
+      fieldName='settings[username]',
+      fieldId='settings_username',
+      value=this.paymentMethod.getSetting('username'),
+      label=t('API Login'),
+      help=t('Enter the API username you obtained when setting up your CloverPayments account.'),
+      required='true'
+    ) }}
+  </li>
+  <li>
+    {{ widget('XLite\\View\\FormField\\Input\\Secure',
+      fieldName='settings[password]',
+      fieldId='settings_password',
+      value=this.paymentMethod.getSetting('password'),
+      label=t('API Password'),
+      help=t('Enter the API password you obtained when setting up your CloverPayments account.'),
+      required='true'
+    ) }}
+  </li>
+  <li>
+    {{ widget('XLite\\View\\FormField\\Select\\TransactionType',
+      value=this.paymentMethod.getSetting('type'),
+      help=t('Select the method to process transactions.  Auth/Capture performs a single step to authorize your shoppers card and then submit for payment, or you can choose to perform these processes independently.')
+    ) }}
+  </li>
+  <li>
+    {{ widget('XLite\\View\\FormField\\Input\\Text\\TextWithCopyButton',
+      value=this.paymentMethod.processor.getConfigCallbackURL(),
+      readOnly='true',
+      fieldId='settings_callback_url',
+      label=t('IPN URI'),
+      help=t('Select the method to process transactions.  Auth/Capture performs a single step to authorize your shoppers card and then submit for payment, or you can choose to perform these processes independently.')
+    ) }}
+  </li>
+  <li>
+    {{ widget('XLite\\View\\FormField\\Input\\Text',
+      maxlength=20,
+      fieldName='settings[soft_descriptor]',
+      fieldId='settings_soft_descriptor',
+      value=this.paymentMethod.getSetting('soft_descriptor'),
+      label=t('Statement (Soft) Descriptor'),
+      required='true'
+    ) }}
+  </li>
+  <li>
+    {{ widget('XLite\\View\\FormField\\Select\\TestLiveModeSetting',
+      value=this.paymentMethod.getSetting('mode'),
+      help=t('Select to determine whether transactions are sent into the live/production mode or into the sandbox for testing.')
+    ) }}
+  </li>
+</ul>

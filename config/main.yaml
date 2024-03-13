@@ -1,7 +1,7 @@
-version: 5.5.0.0
+version: 5.5.0.4
 type: payment
 authorName: 'Ilya I'
-moduleName: 'Clover payments'
+moduleName: 'CloverPayments'
 description: 'Clover integration'
 minorRequiredCoreVersion: 0 
 dependsOn: {  }

@@ -1,0 +1,819 @@
+<?php
+
+/**
+ * Copyright (c) 2011-present Qualiteam software Ltd. All rights reserved.
+ * See https://www.x-cart.com/license-agreement.html for license details.
+ */
+
+namespace Iidev\CloverPayments\Model\Payment\Processor;
+
+use Doctrine\DBAL\LockMode;
+use Doctrine\ORM\EntityManager;
+use XLite\Core\Cache\ExecuteCachedTrait;
+use XLite\Core\Database;
+use XLite\Core\Request;
+use XLite\Core\TopMessage;
+use XLite\InjectLoggerTrait;
+use XLite\Model\Payment\BackendTransaction;
+use XLite\Model\Payment\Transaction;
+use Iidev\CloverPayments\Core\APIException;
+use Iidev\CloverPayments\Core\CloverPaymentsAPI;
+
+/**
+ * CloverPayments processor
+ *
+ * Find the latest API document here:
+ */
+class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
+{
+    use ExecuteCachedTrait;
+    use InjectLoggerTrait;
+    /**
+     * Get allowed backend transactions
+     *
+     * @return string[] Status code
+     */
+    public function getAllowedTransactions()
+    {
+        return [
+            BackendTransaction::TRAN_TYPE_CAPTURE,
+            BackendTransaction::TRAN_TYPE_VOID,
+            BackendTransaction::TRAN_TYPE_REFUND,
+            BackendTransaction::TRAN_TYPE_REFUND_PART,
+            BackendTransaction::TRAN_TYPE_REFUND_MULTI,
+        ];
+    }
+
+    /**
+     * @return string Widget class name or template path
+     */
+    public function getSettingsWidget()
+    {
+        return 'modules/Iidev/CloverPayments/config.twig';
+    }
+
+    /**
+     * @return string
+     */
+    public function getConfigCallbackURL()
+    {
+        return \XLite::getInstance()->getShopURL(
+            \XLite\Core\Converter::buildURL('callback', '', [], \XLite::getCustomerScript()),
+            \XLite\Core\Config::getInstance()->Security->customer_security
+        );
+    }
+
+    /**
+     * @param \XLite\Model\Payment\Method $method Payment method
+     *
+     * @return string|boolean|null
+     */
+    public function getAdminIconURL(\XLite\Model\Payment\Method $method)
+    {
+        return true;
+    }
+
+    /**
+     * @param \XLite\Model\Payment\Method $method Payment method
+     *
+     * @return boolean
+     */
+    public function isConfigured(\XLite\Model\Payment\Method $method)
+    {
+        return parent::isConfigured($method)
+            && $method->getSetting('username')
+            && $method->getSetting('password')
+            && $method->getSetting('soft_descriptor')
+            && ($this->isTestMode($method) || \XLite\Core\Config::getInstance()->Security->customer_security);
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getInputTemplate()
+    {
+        return 'modules/Iidev/CloverPayments/checkout/checkout.twig';
+    }
+
+    /**
+     * Get initial transaction type (used when customer places order)
+     *
+     * @param \XLite\Model\Payment\Method $method Payment method object OPTIONAL
+     *
+     * @return string
+     */
+    public function getInitialTransactionType($method = null)
+    {
+        return ($method ? $method->getSetting('type') : $this->getSetting('type')) === self::OPERATION_AUTH
+            ? BackendTransaction::TRAN_TYPE_AUTH
+            : BackendTransaction::TRAN_TYPE_SALE;
+    }
+
+    /**
+     * Do initial payment
+     *
+     * @return string Status code
+     */
+    protected function doInitialPayment()
+    {
+        $result = static::FAILED;
+
+        try {
+            $api = $this->getAPI();
+            $data = $this->getInitialPaymentData();
+
+            $response = $this->getSetting('type') === self::OPERATION_AUTH
+                ? $api->cardTransactionAuthOnly($data)
+                : $api->cardTransactionAuthCapture($data);
+
+            $processingInfo = $response['processing-info'];
+            if ($processingInfo['processing-status'] === 'success') {
+                $result = static::COMPLETED;
+
+                if ($this->getSetting('type') === self::OPERATION_SALE) {
+                    $transaction = $this->transaction;
+                    $backendTransaction = $transaction->createBackendTransaction(
+                        BackendTransaction::TRAN_TYPE_SALE
+                    );
+                    $backendTransaction->setValue($transaction->getValue());
+                    $backendTransaction->setStatus(BackendTransaction::STATUS_SUCCESS);
+                }
+            }
+
+            $this->saveFilteredData($this->prepareDataToSave($response));
+
+            $api::dropToken();
+        } catch (APIException $e) {
+            $this->transaction->setNote($e->getMessage());
+            $this->transaction->setDataCell('status', $e->getMessage());
+
+            $errors = [];
+
+            foreach ($e->getCodes() as $k => $code) {
+                $name = $e->getNames()[$k] ?? null;
+                $description = $e->getMessages()[$k] ?? null;
+
+                if ($processResult = $this->processErrorCode($code, $name, $description)) {
+                    $errors[] = $processResult;
+                }
+            }
+
+            if (!empty($errors)) {
+                $this->transaction->setDataCell(
+                    \Iidev\CloverPayments\Model\Payment\Transaction::BLUESNAP_ERRORS_CELL,
+                    json_encode(array_unique($errors)),
+                    null,
+                    \XLite\Model\Payment\TransactionData::ACCESS_CUSTOMER
+                );
+            }
+        }
+
+        return $result;
+    }
+
+    protected function processErrorCode($code, $name = null, $description = null)
+    {
+        switch ($code) {
+            case '14016':
+                if ($name === 'VALIDATION_GENERAL_FAILURE' && $description) {
+                    return $description;
+                } else {
+                    return static::t('CloverPayments Error #14016');
+                }
+                break;
+            case '10000':
+                return $description ?: static::t('CloverPayments Error #10000');
+                break;
+            case '10001':
+                return $description ?: static::t('CloverPayments Error #10001');
+                break;
+            case '15011':
+                return $description ?: static::t('CloverPayments Error #15011');
+                break;
+            case '14002':
+                switch ($name) {
+                    case 'INSUFFICIENT_FUNDS':
+                        return static::t('CloverPayments Error #14002 INSUFFICIENT_FUNDS');
+                        break;
+                    case 'GENERAL_PAYMENT_PROCESSING_ERROR':
+                        return static::t('CloverPayments Error #14002 GENERAL_PAYMENT_PROCESSING_ERROR');
+                        break;
+                    case 'CALL_ISSUER':
+                        return static::t('CloverPayments Error #14002 CALL_ISSUER');
+                        break;
+                    case 'PROCESSING_GENERAL_DECLINE':
+                        return static::t('CloverPayments Error #14002 PROCESSING_GENERAL_DECLINE');
+                        break;
+                    case 'THE_ISSUER_IS_UNAVAILABLE_OR_OFFLINE':
+                        return static::t('CloverPayments Error #14002 THE_ISSUER_IS_UNAVAILABLE_OR_OFFLINE');
+                        break;
+                }
+                break;
+        }
+
+        return $description ?: null;
+    }
+
+    /**
+     * @return array
+     */
+    protected function getInitialPaymentData()
+    {
+        $currency = $this->transaction->getCurrency();
+        $amount = $this->currencyFormat($this->transaction->getValue(), $currency);
+
+        $profile = $this->transaction->getProfile();
+
+        $cardHolderInfo = $this->prepareAddress($profile->getBillingAddress());
+        $cardHolderInfo['email'] = $profile->getLogin();
+        $cardHolderInfo['address'] = $cardHolderInfo['address1'];
+        unset($cardHolderInfo['address1']);
+
+        $shippingContactInfo = $this->prepareAddress($profile->getShippingAddress());
+
+        $result = [
+            'merchant-transaction-id' => $this->getTransactionId(),
+            'amount'                  => $amount,
+            'currency'                => $currency->getCode(),
+            'card-holder-info'        => array_filter($cardHolderInfo),
+            'transaction-fraud-info'  => [
+                'shipping-contact-info' => $shippingContactInfo,
+                'shopper-ip-address'    => \XLite\Core\Request::getInstance()->getClientIp(),
+            ],
+        ];
+
+        return $result;
+    }
+
+    /**
+     * http://developers.CloverPayments.com/docs/cvv-response-codes
+     * http://developers.CloverPayments.com/docs/avs-response-codes
+     * @param array $data
+     *
+     * @return array
+     */
+    protected function prepareDataToSave(array $data)
+    {
+        $result = $this->alignArray($data);
+
+        if (isset($result['processing-info_cvv-response-code'])) {
+            $processingInfoСvvResponseCodes = [
+                'MA'               => 'Match',
+                'NC'               => 'Issuer is not certified for CVV2/CVC2/CID',
+                'ND'               => 'Check was not done',
+                'NM'               => 'No match',
+                'NP'               => 'CVV2/CVC2/CID should be on the card but is not present',
+                'NR'               => 'CVV check not requested',
+                'Unknown Response' => 'Unexpected response from the processor',
+            ];
+
+            $result['processing-info_cvv-response-code']
+                = $processingInfoСvvResponseCodes[$result['processing-info_cvv-response-code']];
+        }
+
+        if (isset($result['processing-info_avs-response-code-zip'])) {
+            $processingInfoAvsResponseCodeZip = [
+                'M'                => 'ZIP code match',
+                'N'                => 'ZIP code does not match',
+                'U'                => 'ZIP code not verified',
+                'Unknown Response' => 'Unexpected response from the processor',
+            ];
+
+            $result['processing-info_avs-response-code-zip']
+                = $processingInfoAvsResponseCodeZip[$result['processing-info_avs-response-code-zip']];
+        }
+
+        if (isset($result['processing-info_avs-response-code-address'])) {
+            $processingInfoAvsResponseCodeAddress = [
+                'M'                => 'Street address match',
+                'N'                => 'Street address does not match',
+                'U'                => 'Street address not verified',
+                'Unknown Response' => 'Unexpected response from the processor',
+            ];
+
+            $result['processing-info_avs-response-code-address']
+                = $processingInfoAvsResponseCodeAddress[$result['processing-info_avs-response-code-address']];
+        }
+
+        if (isset($result['processing-info_avs-response-code-name'])) {
+            $processingInfoAvsResponseCodeName = [
+                'M'                => 'Name match',
+                'N'                => 'Name does not match',
+                'U'                => 'Name not verified',
+                'Unknown Response' => 'Unexpected response from the processor',
+            ];
+
+            $result['processing-info_avs-response-code-name']
+                = $processingInfoAvsResponseCodeName[$result['processing-info_avs-response-code-name']];
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param array  $data
+     * @param string $prefix
+     *
+     * @return array
+     */
+    protected function alignArray(array $data, $prefix = '')
+    {
+        $result = [[]];
+        $prefix = $prefix ? $prefix . '_' : '';
+        foreach ($data as $name => $value) {
+            $key = $prefix . $name;
+            if (is_scalar($value)) {
+                $result[0][$key] = $value;
+            } elseif (is_array($value)) {
+                $result[] = $this->alignArray($value, $key);
+            }
+        }
+
+        return call_user_func_array('array_merge', $result);
+    }
+
+    /**
+     * @param \XLite\Model\Address $address
+     *
+     * @return array
+     */
+    protected function prepareAddress(\XLite\Model\Address $address)
+    {
+        $countryCode = $address->getCountryCode();
+
+        $street = $address->getStreet();
+        if (strlen($street) > 100) {
+            $address1 = substr($street, 0, 100);
+            $address2 = substr($street, 99, 42);
+        } else {
+            $address1 = $street;
+            $address2 = '';
+        }
+
+        $result = [
+            'first-name' => $address->getFirstname(),
+            'last-name'  => $address->getLastname(),
+            'country'    => $address->getCountryCode(),
+            'address1'   => $address1,
+            'city'       => $address->getCity(),
+            'zip'        => $address->getZipcode(),
+        ];
+
+        if (in_array($countryCode, ['US', 'CA'], true) && $address->getState()) {
+            $result['state'] = $address->getState()->getCode();
+        }
+
+        if ($address2) {
+            $result['address2'] = $address2;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param BackendTransaction $transaction Transaction
+     *
+     * @return boolean
+     */
+    protected function doCapture(BackendTransaction $transaction)
+    {
+        $result = false;
+
+        try {
+            Database::getEM()->transactional(function (EntityManager $em) use ($transaction, &$result) {
+                $api = $this->getAPI();
+
+                $paymentTransaction = $transaction->getPaymentTransaction();
+                $em->lock($paymentTransaction, LockMode::PESSIMISTIC_WRITE);
+
+                try {
+                    $response = $api->cardTransactionCapture($paymentTransaction->getDetail('transaction-id'));
+
+                    $processingInfo = $response['processing-info'];
+                    if ($processingInfo['processing-status'] === 'SUCCESS') {
+                        $transaction->setStatus(BackendTransaction::STATUS_SUCCESS);
+
+                        $result = true;
+                        TopMessage::getInstance()->addInfo('Payment has been captured successfully');
+                    }
+                } catch (APIException $e) {
+                    TopMessage::getInstance()
+                        ->addError('Transaction failure. CloverPayments response: ' . $e->getMessage() . ' Please contact CloverPayments support (merchants@CloverPayments.com) for further assistance');
+                }
+            });
+        } catch (\Exception $e) {
+            $this->getLogger('XC-CloverPayments')->error(__FUNCTION__, [
+                'request'          => Request::getInstance()->getData(),
+                'exceptionMessage' => $e->getMessage(),
+            ]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param BackendTransaction $transaction Transaction
+     *
+     * @return boolean
+     */
+    protected function doVoid(BackendTransaction $transaction)
+    {
+        $result = false;
+
+        try {
+            Database::getEM()->transactional(function (EntityManager $em) use ($transaction, &$result) {
+                $api = $this->getAPI();
+
+                $paymentTransaction = $transaction->getPaymentTransaction();
+                $em->lock($paymentTransaction, LockMode::PESSIMISTIC_WRITE);
+
+                try {
+                    $response = $api->cardTransactionAuthReversal($paymentTransaction->getDetail('transaction-id'));
+
+                    $processingInfo = $response['processing-info'];
+                    if ($processingInfo['processing-status'] === 'SUCCESS') {
+                        $transaction->setStatus(BackendTransaction::STATUS_SUCCESS);
+                        $paymentTransaction->setStatus(Transaction::STATUS_VOID);
+
+                        $result = true;
+                        TopMessage::getInstance()->addInfo('Payment have been voided successfully');
+                    }
+                } catch (APIException $e) {
+                    TopMessage::getInstance()
+                        ->addError('Transaction failure. CloverPayments response: ' . $e->getMessage() . ' Please contact CloverPayments support (merchants@CloverPayments.com) for further assistance');
+                }
+            });
+        } catch (\Exception $e) {
+            $this->getLogger('XC-CloverPayments')->error(__FUNCTION__, [
+                'request'          => Request::getInstance()->getData(),
+                'exceptionMessage' => $e->getMessage(),
+            ]);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Perform refund
+     *
+     * @param BackendTransaction $transaction Transaction
+     *
+     * @return bool
+     */
+    protected function performRefund(BackendTransaction $transaction)
+    {
+        $result = false;
+
+        try {
+            Database::getEM()->transactional(function (EntityManager $em) use ($transaction, &$result) {
+                $api = $this->getAPI();
+
+                $paymentTransaction = $transaction->getPaymentTransaction();
+                $em->lock($paymentTransaction, LockMode::PESSIMISTIC_WRITE);
+
+                try {
+                    $response = $api->refund(
+                        $paymentTransaction->getDetail('transaction-id'),
+                        $transaction->getValue() < $paymentTransaction->getValue()
+                            ? $transaction->getValue()
+                            : null
+                    );
+
+                    if ($response) {
+                        $transaction->setStatus(BackendTransaction::STATUS_SUCCESS);
+
+                        $result = true;
+                        TopMessage::getInstance()->addInfo('Payment has been refunded successfully');
+                    }
+                } catch (APIException $e) {
+                    TopMessage::getInstance()
+                        ->addError('Transaction failure. CloverPayments response: ' . $e->getMessage() . ' Please contact CloverPayments support (merchants@CloverPayments.com) for further assistance');
+                }
+            });
+        } catch (\Exception $e) {
+            $this->getLogger('XC-CloverPayments')->error(__FUNCTION__, [
+                'request'          => Request::getInstance()->getData(),
+                'exceptionMessage' => $e->getMessage(),
+            ]);
+        }
+
+        if (!$result) {
+            $transaction->setStatus(BackendTransaction::STATUS_FAILED);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param BackendTransaction $transaction Transaction
+     *
+     * @return bool
+     */
+    protected function doRefund(BackendTransaction $transaction)
+    {
+        return $this->performRefund($transaction);
+    }
+
+    /**
+     * @param BackendTransaction $transaction Transaction
+     *
+     * @return boolean
+     */
+    protected function doRefundPart(BackendTransaction $transaction)
+    {
+        return $this->performRefund($transaction);
+    }
+
+    /**
+     * @param BackendTransaction $transaction Transaction
+     *
+     * @return boolean
+     */
+    protected function doRefundMulti(BackendTransaction $transaction)
+    {
+        return $this->performRefund($transaction);
+    }
+
+    /**
+     * Get callback request owner transaction or null
+     *
+     * @return Transaction|void
+     */
+    public function getCallbackOwnerTransaction()
+    {
+        $result = null;
+
+        $request = \XLite\Core\Request::getInstance();
+        if ($request->referenceNumber && $request->merchantTransactionId) {
+            $this->getLogger('XC-CloverPayments')->error(__FUNCTION__ . 'Callback', [
+                'request' => \XLite\Core\Request::getInstance()->getData(),
+            ]);
+
+            try {
+                $cardTransaction = \XLite\Core\Cache\ExecuteCached::executeCachedRuntime(
+                    function () {
+                        return $this->getAPI()->cardTransactionRetrieve(
+                            \XLite\Core\Request::getInstance()->referenceNumber
+                        );
+                    },
+                    'CloverPaymentsCardTransaction' . $request->referenceNumber
+                );
+                if ($cardTransaction['merchant-transaction-id'] === $request->merchantTransactionId) {
+                    /** @var Transaction $result */
+                    $result = Database::getRepo('XLite\Model\Payment\Transaction')->findOneBy(
+                        ['public_id' => $request->merchantTransactionId]
+                    );
+                }
+            } catch (APIException $e) {
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Check if we can process IPN right now or should receive it later
+     *
+     * @param \XLite\Model\Payment\Transaction $transaction Callback-owner transaction
+     *
+     * @return boolean
+     */
+    protected function canProcessIPN(\XLite\Model\Payment\Transaction $transaction)
+    {
+        return $transaction->getOrder()->getOrderNumber() && (
+                $transaction->isEntityLockExpired(\XLite\Model\Payment\Transaction::LOCK_TYPE_IPN)
+                || !$transaction->isEntityLocked(\XLite\Model\Payment\Transaction::LOCK_TYPE_IPN)
+            );
+    }
+
+    /**
+     * @param Transaction $transaction Callback-owner transaction
+     *
+     * @throws \XLite\Core\Exception\PaymentProcessing\CallbackNotReady
+     */
+    public function processCallback(Transaction $transaction)
+    {
+        $this->transaction = $transaction;
+
+        if (!$this->canProcessIPN($transaction)) {
+            throw new \XLite\Core\Exception\PaymentProcessing\CallbackNotReady();
+        } else {
+            $transaction->setEntityLock(\XLite\Model\Payment\Transaction::LOCK_TYPE_IPN);
+        }
+
+        parent::processCallback($transaction);
+
+        $request = \XLite\Core\Request::getInstance();
+
+        /** @var BackendTransaction $backendTransaction */
+        $backendTransaction = null;
+        $status = BackendTransaction::STATUS_SUCCESS;
+
+        $transactionType = $request->transactionType;
+        switch ($transactionType) {
+            case 'REFUND':
+            case 'CHARGEBACK':
+                try {
+                    Database::getEM()->transactional(function (EntityManager $em) use ($transaction, $transactionType) {
+                        $isChargeback = $transactionType === 'CHARGEBACK';
+                        $em->lock($transaction, LockMode::PESSIMISTIC_WRITE);
+
+                        $em->refresh($transaction);
+                        $em->refresh($transaction->getOrder());
+
+                        $CloverPaymentsRefunds = [];
+                        $cardTransaction = \XLite\Core\Cache\ExecuteCached::getRuntimeCache(
+                            'CloverPaymentsCardTransaction' . \XLite\Core\Request::getInstance()->referenceNumber
+                        );
+                        /** @var array $refunds */
+                        $refunds = $isChargeback
+                            ? $cardTransaction['chargebacks']['chargeback']
+                            : $cardTransaction['refunds']['refund'];
+                        $refunds = key($refunds) === 0 ? $refunds : [$refunds];
+                        foreach ($refunds as $refund) {
+                            $CloverPaymentsRefunds[] = $refund['amount'];
+                        }
+
+                        $counts = array_count_values($this->getRefundedAmounts($transaction));
+                        $unregisteredRefunds = array_values(
+                            array_filter($CloverPaymentsRefunds, static function ($item) use (&$counts) {
+                                return empty($counts[$item]) || !$counts[$item]--;
+                            })
+                        );
+
+                        foreach ($unregisteredRefunds as $k => $refundAmount) {
+                            /** @var BackendTransaction $tmpTransaction */
+                            foreach ($transaction->getBackendTransactions() as $tmpTransaction) {
+                                $tmpAmount = $this->currencyFormat(
+                                    $tmpTransaction->getValue(),
+                                    $transaction->getCurrency()
+                                );
+                                if (
+                                    $refundAmount === $tmpAmount
+                                    && $tmpTransaction->isRefund()
+                                    && $tmpTransaction->getStatus() !== BackendTransaction::STATUS_SUCCESS
+                                ) {
+                                    $tmpTransaction->setStatus(BackendTransaction::STATUS_SUCCESS);
+                                    unset($unregisteredRefunds[$k]);
+
+                                    $tmpTransaction->registerTransactionInOrderHistory('callback, IPN');
+                                }
+                            }
+                        }
+
+                        $transactionAmount = $this->currencyFormat(
+                            $transaction->getValue(),
+                            $transaction->getCurrency()
+                        );
+                        foreach ($unregisteredRefunds as $refundAmount) {
+                            $backendTransaction = $transaction->createBackendTransaction(
+                                $refundAmount === $transactionAmount
+                                    ? BackendTransaction::TRAN_TYPE_REFUND
+                                    : BackendTransaction::TRAN_TYPE_REFUND_PART
+                            );
+                            $backendTransaction->setValue($refundAmount);
+                            $backendTransaction->setStatus(BackendTransaction::STATUS_SUCCESS);
+
+                            $backendTransaction->registerTransactionInOrderHistory('callback, IPN');
+                        }
+
+                        if (!empty($unregisteredRefunds) && $isChargeback) {
+                            \XLite\Core\Mailer::sendCloverPaymentsChargeback(
+                                $transaction->getOrder(),
+                                \XLite\Core\Request::getInstance()->referenceNumber
+                            );
+                        }
+                    });
+                } catch (\Exception $e) {
+                    $this->getLogger('XC-CloverPayments')->error(__FUNCTION__, [
+                        'request'          => Request::getInstance()->getData(),
+                        'exceptionMessage' => $e->getMessage(),
+                    ]);
+                }
+
+                break;
+
+            case 'CHARGE':
+                $backendTransactions = $transaction->getBackendTransactions();
+                /** @var BackendTransaction $tmpTransaction */
+                foreach ($backendTransactions as $tmpTransaction) {
+                    if (
+                        $tmpTransaction->isCapture()
+                        || $tmpTransaction->getType() === BackendTransaction::TRAN_TYPE_SALE
+                    ) {
+                        $backendTransaction = $tmpTransaction;
+                        break;
+                    }
+                }
+
+                break;
+        }
+
+        if ($backendTransaction) {
+            $backendTransaction->registerTransactionInOrderHistory('callback, IPN');
+
+            $this->setBackendTransactionStatus($backendTransaction, $status);
+        }
+
+        $transaction->unsetEntityLock(\XLite\Model\Payment\Transaction::LOCK_TYPE_IPN);
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function processCallbackNotReady(\XLite\Model\Payment\Transaction $transaction)
+    {
+        parent::processCallbackNotReady($transaction);
+
+        header('HTTP/1.1 409 Conflict', true, 409);
+        header('Status: 409 Conflict');
+        header('X-Robots-Tag: noindex, nofollow');
+    }
+
+    /**
+     * @param Transaction $transaction
+     *
+     * @return float[]
+     */
+    protected function getRefundedAmounts(Transaction $transaction)
+    {
+        $result = [];
+
+        /** @var BackendTransaction $tmpTransaction */
+        foreach ($transaction->getBackendTransactions() as $tmpTransaction) {
+            if (
+                $tmpTransaction->isRefund()
+                && $tmpTransaction->getStatus() === BackendTransaction::STATUS_SUCCESS
+            ) {
+                $result[] = $this->currencyFormat($tmpTransaction->getValue(), $transaction->getCurrency());
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param BackendTransaction $transaction
+     * @param string             $status
+     */
+    protected function setBackendTransactionStatus(BackendTransaction $transaction, $status)
+    {
+        try {
+            Database::getEM()->transactional(static function (EntityManager $em) use ($transaction, $status) {
+                $paymentTransaction = $transaction->getPaymentTransaction();
+
+                $em->lock($paymentTransaction, LockMode::PESSIMISTIC_WRITE);
+                $em->refresh($paymentTransaction->getOrder());
+
+                $transaction->setStatus($status);
+            });
+        } catch (\Exception $e) {
+            $this->getLogger('XC-CloverPayments')->error(__FUNCTION__, [
+                'request'          => Request::getInstance()->getData(),
+                'exceptionMessage' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Define saved into transaction data schema
+     *
+     * @return array
+     */
+    protected function defineSavedData()
+    {
+        $data = parent::defineSavedData();
+        $data['transaction-id'] = 'CloverPayments identifier for the transaction';
+        $data['vaulted-shopper-id'] = 'ID of an existing vaulted shopper';
+        $data['credit-card_card-last-four-digits'] = 'Last four digits of the credit card';
+        $data['credit-card_card-type'] = 'Credit card type';
+        $data['credit-card_card-sub-type'] = 'Card sub-type, such as Credit or Debit';
+        $data['processing-info_cvv-response-code'] = 'CVV response';
+        $data['processing-info_avs-response-code-zip'] = 'ZIP AVS response';
+        $data['processing-info_avs-response-code-address'] = 'Address AVS response code';
+        $data['processing-info_avs-response-code-name'] = 'Name AVS response';
+
+        return $data;
+    }
+
+    /**
+     * @param float                 $value
+     * @param \XLite\Model\Currency $currency
+     *
+     * @return string
+     */
+    protected function currencyFormat($value, $currency)
+    {
+        return number_format($currency->roundValue($value), 2, '.', '');
+    }
+
+    /**
+     * @return CloverPaymentsAPI
+     */
+    protected function getAPI()
+    {
+        return $this->executeCachedRuntime(static function () {
+            return new CloverPaymentsAPI(\Iidev\CloverPayments\Main::getMethodConfig());
+        });
+    }
+}

@@ -1,13 +1,119 @@
-
- XLite\Model\Payment\Method:
-  - service_name: CloverPayment
-    class: Iidev\CloverPayments\Model\Payment\Processor\CloverPayment
+XLite\Model\Payment\Method:
+  -
+    service_name: CloverPayments
+    class: Iidev\CloverPayments\Model\Payment\Processor\CloverPayments
     type: C
+    orderby: 0
+    countries: ['', AD, AE, AG, AI, AL, AM, AO, AQ, AR, AS, AT, AU, AW, AZ, BA, BB, BD, BE, BF, BG, BH, BI, BJ, BM, BN, BO, BR, BS, BT, BV, BW, BY, BZ, CA, CC, CD, CF, CH, CI, CK, CL, CM, CN, CR, CV, CW, CX, CY, CZ, DE, DJ, DK, DM, DO, DZ, EC, EE, EG, EH, ER, ES, ET, FI, FJ, FK, FM, FO, FR, GA, GB, GD, GE, GG, GH, GI, GL, GM, GN, GP, GQ, GR, GS, GT, GU, GW, GY, HK, HM, HN, HR, HT, HU, ID, IE, IL, IM, IN, IO, IS, IT, JE, JM, JO, JP, KE, KG, KH, KI, KM, KN, KR, KW, KY, KZ, LA, LC, LI, LK, LR, LS, LT, LU, LV, MA, MC, MD, ME, MF, MG, MH, MK, ML, MN, MO, MP, MQ, MR, MS, MT, MU, MV, MW, MX, MY, MZ, NA, NC, NE, NF, NG, NI, NL, 'NO', NP, NR, NU, NZ, OM, PA, PE, PF, PG, PH, PK, PL, PM, PN, PR, PT, PW, PY, QA, RE, RO, RS, RU, RW, SA, SB, SC, SE, SG, SH, SI, SJ, SK, SL, SM, SN, SO, SR, ST, SV, SX, SZ, TC, TD, TF, TG, TH, TJ, TK, TL, TM, TN, TO, TR, TT, TV, TW, TZ, UA, UG, UM, US, UY, UZ, VA, VC, VE, VG, VI, VN, VU, WF, WS, YT, ZA, ZM, ZW]
+    translations: [{ code: en, name: 'CloverPayments Credit/Debit Card Payments', title: 'Credit/Debit Cards' }]
+    settings: [{ name: username }, { name: password }, { name: type, value: sale }, { name: soft_descriptor }, { name: mode, value: test }]
+XLite\Model\Notification:
+  -
+    templatesDirectory: modules/XC/CloverPayments/chargeback
+    availableForAdmin: true
+    availableForCustomer: false
+    enabledForAdmin: true
+    enabledForCustomer: false
+    adminHeaderEnabled: true
+    adminGreetingEnabled: false
+    adminSignatureEnabled: true
+    customerHeaderEnabled: false
+    customerGreetingEnabled: false
+    customerSignatureEnabled: false
+    editable: true
+    module: Iidev\CloverPayments
     translations:
       - code: en
-        name: Clover Payment
-    settings:
-      - name: login
-      - name: password
-      - name: mode
-        value: live
+        name: 'New chargeback received - (CloverPayments module)'
+        description: 'This message is used to notify the administrator when a new chargeback received.'
+        adminSubject: 'Order #%order_number% is refunded'
+        adminText: '<p dir="ltr">No merchant likes chargebacks, but they&rsquo;re part of eCommerce. Unfortunately, one is coming your way. Here&rsquo;s what you need to know:</p><p dir="ltr">CloverPayments has received a <strong>%order_total%</strong> chargeback for the order <a href="%order_link%"><strong>#%order_number%</strong></a> and automatically refunded it. That could happen because your customer:</p><ul><li dir="ltr">didn&rsquo;t receive the item</li><li>received the item, but it was damaged</li><li>Was the victim of fraud or identity theft</li></ul><p dir="ltr">If you&rsquo;d like to know more, please log in to your CloverPayments account and use the order locator. Or just hit reply, I&rsquo;ll do my best to help you.</p>'
+
+XLite\Model\LanguageLabel:
+  -
+    name: 'API Login'
+    translations: [{ code: en, label: 'API Login' }]
+  -
+    name: 'API Password'
+    translations: [{ code: en, label: 'API Password' }]
+  -
+    name: 'IPN URI'
+    translations: [{ code: en, label: 'IPN URI' }]
+  -
+    name: 'Statement (Soft) Descriptor'
+    translations: [{ code: en, label: 'Statement (Soft) Descriptor' }]
+  -
+    name: 'Payments with this payment method are not allowed because HTTPS is not configured'
+    translations: [{ code: en, label: 'Payments with this payment method are not allowed because <a href="{{url}}">HTTPS is not configured or there is a problem with the security certificate</a>. The method may be used without SSL in Test mode; however, to accept payments with this method in Live mode, the merchant is required to be working in a secured environment (HTTPS) and to have a security certificate.' }]
+  -
+    name: 'Enter the API username you obtained when setting up your CloverPayments account.'
+    translations: [{ code: en, label: 'Enter the API username you obtained when setting up your CloverPayments account.' }]
+  -
+    name: 'Enter the API password you obtained when setting up your CloverPayments account.'
+    translations: [{ code: en, label: 'Enter the API password you obtained when setting up your CloverPayments account.' }]
+  -
+    name: 'Select the method to process transactions.  Auth/Capture performs a single step to authorize your shoppers card and then submit for payment, or you can choose to perform these processes independently.'
+    translations: [{ code: en, label: 'Select the method to process transactions.  Auth/Capture performs a single step to authorize your shoppers card and then submit for payment, or you can choose to perform these processes independently.' }]
+  -
+    name: 'IPNs (aka – webhooks) provide an effective way to keep you up-to-date on all transaction events in real time. To enable IPNs, you will need to configure IPNs in your CloverPayments account.'
+    translations: [{ code: en, label: 'IPNs (aka – webhooks) provide an effective way to keep you up-to-date on all transaction events in real time. To enable IPNs, you will need to configure IPNs in your CloverPayments account.' }]
+  -
+    name: 'Select to determine whether transactions are sent into the live/production mode or into the sandbox for testing.'
+    translations: [{ code: en, label: 'Select to determine whether transactions are sent into the live/production mode or into the sandbox for testing.' }]
+  -
+    name: 'The token has expired, please click here to reload the form and then fill the card details again.'
+    translations: [{ code: en, label: 'The token has expired, please click <a>here</a> to reload the form and then fill the card details again.' }]
+  -
+    name: 'CloverPayments Error #14016'
+    translations: [{ code: en, label: 'Unfortunately your selected Card brand and Currency combination is not available. Please try a different card or contact our support team.' }]
+  -
+    name: 'CloverPayments Error #10000'
+    translations: [{ code: en, label: 'A general payment failure has occurred' }]
+  -
+    name: 'CloverPayments Error #10001'
+    translations: [{ code: en, label: 'Validation failure' }]
+  -
+    name: 'CloverPayments Error #15011'
+    translations: [{ code: en, label: 'Fraud detected' }]
+  -
+    name: 'CloverPayments Error #14002 INSUFFICIENT_FUNDS'
+    translations: [{ code: en, label: 'Insufficient funds' }]
+  -
+    name: 'CloverPayments Error #14002 GENERAL_PAYMENT_PROCESSING_ERROR'
+    translations: [{ code: en, label: 'General payment processing error' }]
+  -
+    name: 'CloverPayments Error #14002 CALL_ISSUER'
+    translations: [{ code: en, label: 'Payment processing failure due to an unspecified error. Please contact the issuing bank.' }]
+  -
+    name: 'CloverPayments Error #14002 PROCESSING_GENERAL_DECLINE'
+    translations: [{ code: en, label: 'Payment processing failure due to an unspecified error returned. Retry the transaction and if problem continues contact the issuing bank.' }]
+  -
+    name: 'CloverPayments Error #14002 THE_ISSUER_IS_UNAVAILABLE_OR_OFFLINE'
+    translations: [{ code: en, label: 'Payment processing failure because the issuer is unavailable or offline.' }]
+  -
+    name: 'The selected payment method is currently unavailable.'
+    translations: [{ code: en, label: 'The selected payment method is currently unavailable.' }]
+  -
+    name: 'If the problem persists, please, contact us.'
+    translations: [{ code: en, label: 'If the problem persists, please, <a href="{{link}}">contact us</a>.' }]
+  -
+    name: 'Common CloverPayments error message'
+    translations: [{ code: en, label: 'Your payment could not be processed at this time. Please make sure the card information was entered correctly and resubmit. If the problem persists, please contact your credit card company to authorize the purchase.' }]
+  -
+    name: 'Please enter a valid credit card number'
+    translations: [{ code: en, label: 'Please enter a valid credit card number' }]
+  -
+    name: 'Please enter the expiration date (MM/YYYY)'
+    translations: [{ code: en, label: 'Please enter the expiration date (MM/YYYY)' }]
+  -
+    name: 'Please enter the CVV of your card'
+    translations: [{ code: en, label: 'Please enter the CVV of your card' }]
+  -
+    name: 'CC type is not supported by the merchant'
+    translations: [{ code: en, label: 'CC type is not supported by the merchant' }]
+  -
+    name: 'Unfortunately, an error occurred and your order could not be placed at this time. Please try again, or contact our support team.'
+    translations: [{ code: en, label: 'Unfortunately, an error occurred and your order could not be placed at this time. Please try again, or contact our support team.' }]
+  -
+    name: 'Payment have been voided successfully'
+    translations: [{ code: en, label: 'Payment have been voided successfully' }]

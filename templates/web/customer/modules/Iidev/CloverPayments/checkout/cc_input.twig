@@ -1,35 +1,32 @@
 {##
  # Payment template
  #}
-<form action="/charge" method="post" id="payment-form" class="payment-form">
-  <div class="form-row top-row">
-    <div id="amount" class="field card-number">
-      <input name="amount" placeholder="Amount">
+<div class="payment-form-container">
+  <span class="payment-form-label">{{ t('Secure credit/debit card payment') }}</span>
+  <form action="/charge" method="post" id="payment-form">
+    {# <input type="hidden" name="amount" placeholder="Amount"> #}
+
+    <div class="form-row top-row">
+      <div id="card-number" class="field card-number"></div>
+      <div class="input-errors" id="card-number-errors" role="alert"></div>
     </div>
-  </div>
 
-  <div class="form-row top-row">
-    <div id="card-number" class="field card-number"></div>
-    <div class="input-errors" id="card-number-errors" role="alert"></div>
-  </div>
-
-  <div class="form-row">
-    <div id="card-date" class="field third-width"></div>
-    <div class="input-errors" id="card-date-errors" role="alert"></div>
-  </div>
-  
-  <div class="form-row">
-    <div id="card-cvv" class="field third-width"></div>
-    <div class="input-errors" id="card-cvv-errors" role="alert"></div>
-  </div>
-    
-  <div class="form-row">
-    <div id="card-postal-code" class="field third-width"></div>
-    <div class="input-errors" id="card-postal-code-errors" role="alert"></div>
-  </div>
-    
-  <div id="card-response" role="alert"></div>
-  <div class="button-container">
-    <button>Submit Payment</button>
-  </div>
-</form>
+    <div class="form-group">
+      <div class="form-row">
+        <div id="card-date" class="field third-width"></div>
+        <div class="input-errors" id="card-date-errors" role="alert"></div>
+      </div>
+      <div class="form-row">
+        <div id="card-cvv" class="field third-width"></div>
+        <div class="input-errors" id="card-cvv-errors" role="alert"></div>
+      </div>
+    </div>
+      
+    <div class="form-row">
+      <div id="card-postal-code" class="field third-width"></div>
+      <div class="input-errors" id="card-postal-code-errors" role="alert"></div>
+    </div>
+      
+    <div id="card-response" role="alert"></div>
+  </form>
+</div>

@@ -25,12 +25,11 @@ class CloverPayments extends \XLite\View\AView
         $list = parent::getJSFiles();
         $api  = $this->getAPI();
 
+        $list[] = 'https://cdn.polyfill.io/v3/polyfill.min.js';
+
         $list[] = [
             'url' => $api->getJSURL(),
         ];
-        
-        $list[] = 'https://cdn.polyfill.io/v3/polyfill.min.js';
-        $list[] = $this->isTestMode() ? 'https://checkout.sandbox.dev.clover.com/sdk.js' : 'https://checkout.clover.com/sdk.js';
 
         $list[] = 'modules/Iidev/CloverPayments/checkout/payment.js';
 

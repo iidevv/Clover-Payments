@@ -18,11 +18,11 @@ class CloverPaymentsAPI
 {
     use InjectLoggerTrait;
 
-    public const CARD_TRANSACTION_AUTH_CAPTURE  = 'AuthCapture';
-    public const CARD_TRANSACTION_AUTH_ONLY     = 'AuthOnly';
-    public const CARD_TRANSACTION_CAPTURE       = 'Capture';
+    public const CARD_TRANSACTION_AUTH_CAPTURE = 'AuthCapture';
+    public const CARD_TRANSACTION_AUTH_ONLY = 'AuthOnly';
+    public const CARD_TRANSACTION_CAPTURE = 'Capture';
     public const CARD_TRANSACTION_AUTH_REVERSAL = 'AuthReversal';
-    public const CARD_TRANSACTION_RETRIEVE      = 'Retrieve';
+    public const CARD_TRANSACTION_RETRIEVE = 'Retrieve';
 
     public const BLUESNAP_SESSION_CELL_NAME = 'BlueSnap_Token';
 
@@ -42,26 +42,23 @@ class CloverPaymentsAPI
     }
 
     /**
-     * http://developers.bluesnap.com/v4.0/docs/hosted-payment-fields#section-2-add-the-bluesnap-javascript-file-to-your-checkout-form
-     *
      * @return string
      */
     public function getJSURL()
     {
-        //return $this->getCloverPaymentsDomainPath() . '/services/hosted-payment-fields/v2.0/bluesnap.hpf.min.js';
-        return $this->getCloverPaymentsDomainPath() . '/sdk.js';
+        return $this->config['mode'] === \XLite\View\FormField\Select\TestLiveMode::TEST
+            ? 'https://checkout.sandbox.dev.clover.com/sdk.js'
+            : 'https://checkout.clover.com/sdk.js';
     }
 
     /**
-     * http://developers.bluesnap.com/v4.0/docs/hosted-payment-fields#section-implementing-hosted-payment-fields-in-your-checkout-form
-     *
      * @return string
      */
     private function getCloverPaymentsDomainPath()
     {
         return $this->config['mode'] === \XLite\View\FormField\Select\TestLiveMode::TEST
-            ? 'https://checkout.sandbox.dev.clover.com'
-            : 'https://checkout.clover.com/sdk.js';
+            ? 'https://scl-sandbox.dev.clover.com'
+            : 'https://clover.com';
     }
 
     // {{{ Token
@@ -72,7 +69,7 @@ class CloverPaymentsAPI
     public function getToken()
     {
         $session = \XLite\Core\Session::getInstance();
-        $token   = $session->get(static::BLUESNAP_SESSION_CELL_NAME);
+        $token = $session->get(static::BLUESNAP_SESSION_CELL_NAME);
 
         if (!$token || !$this->isTokenValid($token)) {
             $tokenValue = $this->generateToken();
@@ -91,7 +88,7 @@ class CloverPaymentsAPI
     public function getFraudSessionId()
     {
         $session = \XLite\Core\Session::getInstance();
-        $token   = $session->get(static::BLUESNAP_SESSION_CELL_NAME);
+        $token = $session->get(static::BLUESNAP_SESSION_CELL_NAME);
 
         if (!$token || !$this->isTokenValid($token)) {
             $this->getToken();
@@ -110,7 +107,7 @@ class CloverPaymentsAPI
     {
         if ($token === null) {
             $session = \XLite\Core\Session::getInstance();
-            $token   = $session->get(static::BLUESNAP_SESSION_CELL_NAME);
+            $token = $session->get(static::BLUESNAP_SESSION_CELL_NAME);
         }
 
         return $token && array_shift($token) > LC_START_TIME;
@@ -144,15 +141,14 @@ class CloverPaymentsAPI
         return md5(LC_START_TIME . $this->config['username']);
     }
 
-    public static function dropToken()
-    {
-        $session = \XLite\Core\Session::getInstance();
-        unset($session->{static::BLUESNAP_SESSION_CELL_NAME});
-    }
-
     // }}}
 
     // {{{ Card transaction
+
+    protected function getAlignedAmount($amount) {
+        $amount = (string)($amount * 100);
+        return $amount;
+    }
 
     /**
      * http://developers.bluesnap.com/v2.0/docs/auth-only
@@ -164,9 +160,9 @@ class CloverPaymentsAPI
      */
     public function cardTransactionAuthOnly(array $data)
     {
-        if (!$this->isTokenValid()) {
-            throw new APIException('Token is invalid');
-        }
+        // if (!$this->isTokenValid()) {
+        //     throw new APIException('Token is invalid');
+        // }
 
         $data['card-transaction-type'] = 'AUTH_ONLY';
         $data['recurring-transaction'] = 'ECOMMERCE';
@@ -175,19 +171,23 @@ class CloverPaymentsAPI
             $data['soft-descriptor'] = $this->config['soft_descriptor'];
         }
 
-        $data['transaction-fraud-info']['fraud-session-id'] = $this->getFraudSessionId();
+        // $data['transaction-fraud-info']['fraud-session-id'] = $this->getFraudSessionId();
 
-        $data['pf-token'] = $this->getToken();
+        // $data['pf-token'] = $this->getToken();
 
-        $body = CloverPaymentsXML::toXML(['card-transaction' => $data]);
-        $result = $this->doRequest('POST', 'services/2/transactions', $body);
+        // $body = CloverPaymentsXML::toXML(['card-transaction' => $data]);
+        $body = [
+            'amount' => $this->getAlignedAmount($data['amount']),
+            'source' => $data['source'],
+            'currency' => $data['currency']
+        ];
 
-        return CloverPaymentsXML::stringToArray($result->body);
+        $result = $this->doRequest('POST', 'v1/charges', json_encode($body));
+
+        return json_decode($result->body, true);
     }
 
     /**
-     * http://developers.bluesnap.com/v2.0/docs/auth-capture
-     *
      * @param array $data
      *
      * @return array
@@ -229,7 +229,7 @@ class CloverPaymentsAPI
         $data = [
             'card-transaction' => [
                 'card-transaction-type' => 'CAPTURE',
-                'transaction-id'        => $transactionId,
+                'transaction-id' => $transactionId,
             ],
         ];
 
@@ -251,7 +251,7 @@ class CloverPaymentsAPI
         $data = [
             'card-transaction' => [
                 'card-transaction-type' => 'AUTH_REVERSAL',
-                'transaction-id'        => $transactionId,
+                'transaction-id' => $transactionId,
             ],
         ];
 
@@ -270,7 +270,7 @@ class CloverPaymentsAPI
      */
     public function cardTransactionRetrieve($transactionId)
     {
-        $path   = sprintf('services/2/transactions/%s', $transactionId);
+        $path = sprintf('services/2/transactions/%s', $transactionId);
         $result = $this->doRequest('GET', $path);
 
         return CloverPaymentsXML::stringToArray($result->body);
@@ -313,20 +313,24 @@ class CloverPaymentsAPI
      */
     protected function doRequest($method, $path, $data = '')
     {
+        $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Request', [
+            $method,
+            $path,
+            $data
+        ]);
+
         $url = $this->getCloverPaymentsDomainPath() . '/' . $path;
 
         $request = new \XLite\Core\HTTP\Request($url);
 
         $request->verb = $method;
 
-        $auth = base64_encode(sprintf('%s:%s', $this->config['username'], $this->config['password']));
-        $request->setHeader('Authorization', sprintf('Basic %s', $auth));
-        $request->setHeader('Content-Type', 'application/xml');
-        $request->setHeader('bluesnap-version', '2.0');
+        $request->setHeader('authorization', sprintf('Bearer %s', $this->config['password']));
+        $request->setHeader('Content-Type', 'application/json');
 
         $request->body = $data;
 
-        $this->getLogger('XC-BlueSnap')->error(__FUNCTION__ . 'Request', [
+        $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Request', [
             $method,
             $url,
             $request->headers,
@@ -335,7 +339,7 @@ class CloverPaymentsAPI
 
         $response = $request->sendRequest();
 
-        $this->getLogger('XC-BlueSnap')->error(__FUNCTION__ . 'Response', [
+        $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Response', [
             $method,
             $url,
             $response ? $response->headers : 'empty',
@@ -343,19 +347,19 @@ class CloverPaymentsAPI
             $request->getErrorMessage(),
         ]);
 
-        if (!$response || !in_array((int) $response->code, [200, 201, 204], true)) {
-            if (!$response || in_array((int) $response->code, [403, 500], true)) {
-                throw new APIException(Translation::lbl('Unfortunately, an error occurred and your order could not be placed at this time. Please try again, or contact our support team.'));
-            } elseif ($response->body) {
-                $message = $this->getErrorMessages($response->body);
+        // if (!$response || !in_array((int) $response->code, [200, 201, 204], true)) {
+        //     if (!$response || in_array((int) $response->code, [403, 500], true)) {
+        //         throw new APIException(Translation::lbl('Unfortunately, an error occurred and your order could not be placed at this time. Please try again, or contact our support team.'));
+        //     } elseif ($response->body) {
+        //         $message = $this->getErrorMessages($response->body);
 
-                if ($message) {
-                    throw new APIException($message);
-                }
-            }
+        //         if ($message) {
+        //             throw new APIException($message);
+        //         }
+        //     }
 
-            throw new APIException($request->getErrorMessage(), $response->code);
-        }
+        //     throw new APIException($request->getErrorMessage(), $response->code);
+        // }
 
         return $response;
     }

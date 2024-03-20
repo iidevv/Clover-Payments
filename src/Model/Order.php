@@ -46,7 +46,7 @@ class Order extends \XLite\Model\Order
                     }
 
                     if (isset($result) && $transaction->getPaymentMethod()->getProcessor() instanceof CloverPayments) {
-                        return static::t('Common bluesnap error message');
+                        return static::t('Common CloverPayments error message');
                     }
                 }
             }

@@ -104,6 +104,8 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
      */
     public function getInitialTransactionType($method = null)
     {
+        $this->getLogger('CloverPayments')->error('getInitialTransactionType!');
+
         return ($method ? $method->getSetting('type') : $this->getSetting('type')) === self::OPERATION_AUTH
             ? BackendTransaction::TRAN_TYPE_AUTH
             : BackendTransaction::TRAN_TYPE_SALE;
@@ -116,6 +118,12 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
      */
     protected function doInitialPayment()
     {
+        $this->getLogger('CloverPayments')->error('doInitialPayment!');
+
+        $request = \XLite\Core\Request::getInstance();
+        $sourceValue = $request->source;
+        $this->getLogger('CloverPayments')->error('source: ' . $sourceValue);
+
         $result = static::FAILED;
 
         try {
@@ -125,9 +133,10 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
             $response = $this->getSetting('type') === self::OPERATION_AUTH
                 ? $api->cardTransactionAuthOnly($data)
                 : $api->cardTransactionAuthCapture($data);
+            
+            $this->getLogger('CloverPayments')->error('$response!', $response);
 
-            $processingInfo = $response['processing-info'];
-            if ($processingInfo['processing-status'] === 'success') {
+            if ($response['status'] === 'succeeded') {
                 $result = static::COMPLETED;
 
                 if ($this->getSetting('type') === self::OPERATION_SALE) {
@@ -140,9 +149,10 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                 }
             }
 
-            $this->saveFilteredData($this->prepareDataToSave($response));
+            // $this->saveFilteredData($this->prepareDataToSave($response));
+            $this->saveFilteredData($response);
 
-            $api::dropToken();
+            // $api::dropToken();
         } catch (APIException $e) {
             $this->transaction->setNote($e->getMessage());
             $this->transaction->setDataCell('status', $e->getMessage());
@@ -215,10 +225,21 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     }
 
     /**
+     * @return string
+     */
+    protected function getSource() {
+        $request = \XLite\Core\Request::getInstance();
+
+        return $request->source;
+    }
+
+    /**
      * @return array
      */
     protected function getInitialPaymentData()
     {
+        $this->getLogger('CloverPayments')->error('getInitialPaymentData!');
+        
         $currency = $this->transaction->getCurrency();
         $amount = $this->currencyFormat($this->transaction->getValue(), $currency);
 
@@ -233,6 +254,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
 
         $result = [
             'merchant-transaction-id' => $this->getTransactionId(),
+            'source' => $this->getSource(),
             'amount'                  => $amount,
             'currency'                => $currency->getCode(),
             'card-holder-info'        => array_filter($cardHolderInfo),

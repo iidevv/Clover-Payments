@@ -23,7 +23,7 @@ class CloverPayments extends \XLite\View\AView
     public function getJSFiles()
     {
         $list = parent::getJSFiles();
-        $api  = $this->getAPI();
+        $api = $this->getAPI();
 
         $list[] = 'https://cdn.polyfill.io/v3/polyfill.min.js';
 
@@ -41,7 +41,7 @@ class CloverPayments extends \XLite\View\AView
      */
     public function getCSSFiles()
     {
-        $list   = parent::getCSSFiles();
+        $list = parent::getCSSFiles();
         $list[] = [
             'file' => 'checkout/css/credit_card.less',
             'media' => 'screen',
@@ -58,6 +58,14 @@ class CloverPayments extends \XLite\View\AView
     protected function getDefaultTemplate()
     {
         return 'modules/Iidev/CloverPayments/checkout/cc_input.twig';
+    }
+
+    /**
+     * @return string
+     */
+    protected function getPublicKey()
+    {
+        return \Iidev\CloverPayments\Main::getMethodConfig()['username'];
     }
 
     /**
@@ -78,7 +86,7 @@ class CloverPayments extends \XLite\View\AView
     /**
      * @return array
      */
-    protected function getBlueSnapData()
+    protected function CloverPaymentsData()
     {
         return [
             'token' => $this->getToken(),
@@ -98,9 +106,7 @@ class CloverPayments extends \XLite\View\AView
      */
     protected function getIframeUrl()
     {
-        return $this->isTestMode()
-            ? 'https://sandbox.bluesnap.com/servlet/logo.htm?s=' . $this->getFraudSessionId()
-            : 'https://www.bluesnap.com/servlet/logo.htm?s=' . $this->getFraudSessionId();
+        return '';
     }
 
     /**
@@ -108,9 +114,7 @@ class CloverPayments extends \XLite\View\AView
      */
     protected function getIframeImageUrl()
     {
-        return $this->isTestMode()
-            ? 'https://sandbox.bluesnap.com/servlet/logo.gif?s=' . $this->getFraudSessionId()
-            : 'https://www.bluesnap.com/servlet/logo.gif?s=' . $this->getFraudSessionId();
+        return '';
     }
 
     /**

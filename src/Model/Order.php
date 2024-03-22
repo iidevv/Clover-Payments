@@ -29,8 +29,8 @@ class Order extends \XLite\Model\Order
             foreach (array_reverse($transactions) as $transaction) {
                 if ($transaction->isFailed()) {
                     if (
-                        ($bluesnapFailureReasons = $transaction->getBluesnapFailureReasons())
-                        && in_array(static::t('CloverPayments Error #14016'), $bluesnapFailureReasons)
+                        ($cloverPaymentsFailureReasons = $transaction->getCloverPaymentsFailureReasons())
+                        && in_array(static::t('CloverPayments Error #14016'), $cloverPaymentsFailureReasons)
                     ) {
                         return static::t('CloverPayments Error #14016');
                     }
@@ -45,7 +45,7 @@ class Order extends \XLite\Model\Order
                         }
                     }
 
-                    if (isset($result) && $transaction->getPaymentMethod()->getProcessor() instanceof CloverPayments) {
+                    if (isset ($result) && $transaction->getPaymentMethod()->getProcessor() instanceof CloverPayments) {
                         return static::t('Common CloverPayments error message');
                     }
                 }

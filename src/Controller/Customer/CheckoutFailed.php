@@ -18,8 +18,8 @@ class CheckoutFailed extends \XLite\Controller\Customer\CheckoutFailed
     {
         $cart = $this->getFailedCart();
 
-        return $cart && $cart->getBluesnapFailureReasons()
-            ? $cart->getBluesnapFailureReasons()
+        return $cart && $cart->getCloverPaymentsFailureReasons()
+            ? $cart->getCloverPaymentsFailureReasons()
             : parent::getFailureReason();
     }
 }

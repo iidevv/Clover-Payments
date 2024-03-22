@@ -104,11 +104,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
      */
     public function getInitialTransactionType($method = null)
     {
-        $this->getLogger('CloverPayments')->error('getInitialTransactionType!');
-
-        return ($method ? $method->getSetting('type') : $this->getSetting('type')) === self::OPERATION_AUTH
-            ? BackendTransaction::TRAN_TYPE_AUTH
-            : BackendTransaction::TRAN_TYPE_SALE;
+        return BackendTransaction::TRAN_TYPE_SALE;
     }
 
     /**
@@ -118,23 +114,13 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
      */
     protected function doInitialPayment()
     {
-        $this->getLogger('CloverPayments')->error('doInitialPayment!');
-
-        $request = \XLite\Core\Request::getInstance();
-        $sourceValue = $request->source;
-        $this->getLogger('CloverPayments')->error('source: ' . $sourceValue);
-
         $result = static::FAILED;
 
         try {
             $api = $this->getAPI();
             $data = $this->getInitialPaymentData();
 
-            $response = $this->getSetting('type') === self::OPERATION_AUTH
-                ? $api->cardTransactionAuthOnly($data)
-                : $api->cardTransactionAuthCapture($data);
-            
-            $this->getLogger('CloverPayments')->error('$response!', $response);
+            $response = $api->cardTransactionAuthCapture($data);
 
             if ($response['status'] === 'succeeded') {
                 $result = static::COMPLETED;
@@ -149,10 +135,8 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                 }
             }
 
-            // $this->saveFilteredData($this->prepareDataToSave($response));
-            $this->saveFilteredData($response);
+            $this->saveFilteredData($this->prepareDataToSave($response));
 
-            // $api::dropToken();
         } catch (APIException $e) {
             $this->transaction->setNote($e->getMessage());
             $this->transaction->setDataCell('status', $e->getMessage());
@@ -168,9 +152,9 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                 }
             }
 
-            if (!empty($errors)) {
+            if (!empty ($errors)) {
                 $this->transaction->setDataCell(
-                    \Iidev\CloverPayments\Model\Payment\Transaction::BLUESNAP_ERRORS_CELL,
+                    \Iidev\CloverPayments\Model\Payment\Transaction::CLOVERPAYMENTS_ERRORS_CELL,
                     json_encode(array_unique($errors)),
                     null,
                     \XLite\Model\Payment\TransactionData::ACCESS_CUSTOMER
@@ -184,41 +168,52 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     protected function processErrorCode($code, $name = null, $description = null)
     {
         switch ($code) {
-            case '14016':
-                if ($name === 'VALIDATION_GENERAL_FAILURE' && $description) {
-                    return $description;
-                } else {
-                    return static::t('CloverPayments Error #14016');
-                }
-                break;
-            case '10000':
-                return $description ?: static::t('CloverPayments Error #10000');
-                break;
-            case '10001':
-                return $description ?: static::t('CloverPayments Error #10001');
-                break;
-            case '15011':
-                return $description ?: static::t('CloverPayments Error #15011');
-                break;
-            case '14002':
+            case 'amount_too_large':
+                return static::t("The transaction amount exceeds our limit. Please advise the customer to split the transaction into smaller amounts. If using a single-use card token, re-tokenize the card for any subsequent transaction.");
+            case 'card_declined':
                 switch ($name) {
-                    case 'INSUFFICIENT_FUNDS':
-                        return static::t('CloverPayments Error #14002 INSUFFICIENT_FUNDS');
-                        break;
-                    case 'GENERAL_PAYMENT_PROCESSING_ERROR':
-                        return static::t('CloverPayments Error #14002 GENERAL_PAYMENT_PROCESSING_ERROR');
-                        break;
-                    case 'CALL_ISSUER':
-                        return static::t('CloverPayments Error #14002 CALL_ISSUER');
-                        break;
-                    case 'PROCESSING_GENERAL_DECLINE':
-                        return static::t('CloverPayments Error #14002 PROCESSING_GENERAL_DECLINE');
-                        break;
-                    case 'THE_ISSUER_IS_UNAVAILABLE_OR_OFFLINE':
-                        return static::t('CloverPayments Error #14002 THE_ISSUER_IS_UNAVAILABLE_OR_OFFLINE');
-                        break;
+                    case 'issuer_declined':
+                        return $description;
+
+                    default:
+                        return static::t("The card was declined. Advise the customer to try a different card.");
                 }
-                break;
+            case 'card_on_file_missing':
+                return static::t("The customer does not have a stored payment method. Please ask them to provide card details for payment processing.");
+            case 'charge_already_captured':
+                return static::t("This charge has already been captured. No further action is required.");
+            case 'charge_already_refunded':
+                return static::t("This charge has already been refunded. No further action is required.");
+            case 'email_invalid':
+                return static::t("The provided email is invalid. Ask the customer to provide a valid email address.");
+            case 'expired_card':
+                return static::t("The card's expiration date has passed. Ask the customer to use a different card.");
+            case 'incorrect_cvc':
+                return static::t("The CVC number is incorrect. Ask the customer to enter the correct CVC.");
+            case 'incorrect_number':
+                return static::t("The card number is incorrect. Please have the customer enter a valid card number.");
+            case 'invalid_card_type':
+                return static::t("The card type is not recognized. Verify the card brand before proceeding.");
+            case 'invalid_charge_amount':
+                return static::t("The charge amount exceeds the allowed limit. Split the charge into smaller amounts if possible.");
+            case 'invalid_request':
+                return static::t("The card number provided is invalid. Ask the customer to re-enter their card details.");
+            case 'invalid_tip_amount':
+                return static::t("The tip amount is invalid. Ask the customer to enter a valid tip amount.");
+            case 'invalid_tax_amount':
+                return static::t("The tax amount is invalid. Verify the amount and try again.");
+            case 'missing':
+                return static::t("The token request failed. Allow the customer to retry the transaction.");
+            case 'order_already_paid':
+                return static::t("The order has already been paid. Inform the customer that no further action is needed.");
+            case 'processing_error':
+                return static::t("A processing error occurred. Ask the customer to try the request again.");
+            case 'rate_limit':
+                return static::t("We've hit our rate limit. Wait a moment before attempting another request.");
+            case 'resource_missing':
+                return static::t("The requested resource could not be found. Verify the request and try again.");
+            case 'token_already_used':
+                return static::t("The payment token has already been used. Ask the customer for new card details to generate a new token.");
         }
 
         return $description ?: null;
@@ -227,7 +222,8 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     /**
      * @return string
      */
-    protected function getSource() {
+    protected function getSource()
+    {
         $request = \XLite\Core\Request::getInstance();
 
         return $request->source;
@@ -238,8 +234,6 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
      */
     protected function getInitialPaymentData()
     {
-        $this->getLogger('CloverPayments')->error('getInitialPaymentData!');
-        
         $currency = $this->transaction->getCurrency();
         $amount = $this->currencyFormat($this->transaction->getValue(), $currency);
 
@@ -255,12 +249,12 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
         $result = [
             'merchant-transaction-id' => $this->getTransactionId(),
             'source' => $this->getSource(),
-            'amount'                  => $amount,
-            'currency'                => $currency->getCode(),
-            'card-holder-info'        => array_filter($cardHolderInfo),
-            'transaction-fraud-info'  => [
+            'amount' => $amount,
+            'currency' => $currency->getCode(),
+            'card-holder-info' => array_filter($cardHolderInfo),
+            'transaction-fraud-info' => [
                 'shipping-contact-info' => $shippingContactInfo,
-                'shopper-ip-address'    => \XLite\Core\Request::getInstance()->getClientIp(),
+                'shopper-ip-address' => \XLite\Core\Request::getInstance()->getClientIp(),
             ],
         ];
 
@@ -278,55 +272,29 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     {
         $result = $this->alignArray($data);
 
-        if (isset($result['processing-info_cvv-response-code'])) {
-            $processingInfoСvvResponseCodes = [
-                'MA'               => 'Match',
-                'NC'               => 'Issuer is not certified for CVV2/CVC2/CID',
-                'ND'               => 'Check was not done',
-                'NM'               => 'No match',
-                'NP'               => 'CVV2/CVC2/CID should be on the card but is not present',
-                'NR'               => 'CVV check not requested',
-                'Unknown Response' => 'Unexpected response from the processor',
-            ];
-
-            $result['processing-info_cvv-response-code']
-                = $processingInfoСvvResponseCodes[$result['processing-info_cvv-response-code']];
+        if (isset ($result['id'])) {
+            $result['transaction-id'] = $result['id'];
         }
-
-        if (isset($result['processing-info_avs-response-code-zip'])) {
-            $processingInfoAvsResponseCodeZip = [
-                'M'                => 'ZIP code match',
-                'N'                => 'ZIP code does not match',
-                'U'                => 'ZIP code not verified',
-                'Unknown Response' => 'Unexpected response from the processor',
-            ];
-
-            $result['processing-info_avs-response-code-zip']
-                = $processingInfoAvsResponseCodeZip[$result['processing-info_avs-response-code-zip']];
+        if (isset ($result['source_first6'])) {
+            $result['credit-card_first-six-digits'] = $result['source_first6'];
         }
-
-        if (isset($result['processing-info_avs-response-code-address'])) {
-            $processingInfoAvsResponseCodeAddress = [
-                'M'                => 'Street address match',
-                'N'                => 'Street address does not match',
-                'U'                => 'Street address not verified',
-                'Unknown Response' => 'Unexpected response from the processor',
-            ];
-
-            $result['processing-info_avs-response-code-address']
-                = $processingInfoAvsResponseCodeAddress[$result['processing-info_avs-response-code-address']];
+        if (isset ($result['source_last4'])) {
+            $result['credit-card_card-last-four-digits'] = $result['source_last4'];
         }
-
-        if (isset($result['processing-info_avs-response-code-name'])) {
-            $processingInfoAvsResponseCodeName = [
-                'M'                => 'Name match',
-                'N'                => 'Name does not match',
-                'U'                => 'Name not verified',
-                'Unknown Response' => 'Unexpected response from the processor',
-            ];
-
-            $result['processing-info_avs-response-code-name']
-                = $processingInfoAvsResponseCodeName[$result['processing-info_avs-response-code-name']];
+        if (isset ($result['source_brand'])) {
+            $result['credit-card_brand'] = $result['source_brand'];
+        }
+        if (isset ($result['source_exp_month'])) {
+            $result['credit-card_exp_month'] = $result['source_exp_month'];
+        }
+        if (isset ($result['source_exp_year'])) {
+            $result['credit-card_exp_year'] = $result['source_exp_year'];
+        }
+        if (isset ($result['source_address_zip_check'])) {
+            $result['processing-info_avs-response-code-zip'] = $result['source_address_zip_check'];
+        }
+        if (isset ($result['source_address_line1_check'])) {
+            $result['processing-info_avs-response-code-address'] = $result['source_address_line1_check'];
         }
 
         return $result;
@@ -374,11 +342,11 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
 
         $result = [
             'first-name' => $address->getFirstname(),
-            'last-name'  => $address->getLastname(),
-            'country'    => $address->getCountryCode(),
-            'address1'   => $address1,
-            'city'       => $address->getCity(),
-            'zip'        => $address->getZipcode(),
+            'last-name' => $address->getLastname(),
+            'country' => $address->getCountryCode(),
+            'address1' => $address1,
+            'city' => $address->getCity(),
+            'zip' => $address->getZipcode(),
         ];
 
         if (in_array($countryCode, ['US', 'CA'], true) && $address->getState()) {
@@ -420,12 +388,12 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                     }
                 } catch (APIException $e) {
                     TopMessage::getInstance()
-                        ->addError('Transaction failure. CloverPayments response: ' . $e->getMessage() . ' Please contact CloverPayments support (merchants@CloverPayments.com) for further assistance');
+                        ->addError('Transaction failure. CloverPayments response: ' . $e->getMessage() . ' Please contact CloverPayments support (ilya.i@skinact.com) for further assistance');
                 }
             });
         } catch (\Exception $e) {
-            $this->getLogger('XC-CloverPayments')->error(__FUNCTION__, [
-                'request'          => Request::getInstance()->getData(),
+            $this->getLogger('CloverPayments')->error(__FUNCTION__, [
+                'request' => Request::getInstance()->getData(),
                 'exceptionMessage' => $e->getMessage(),
             ]);
         }
@@ -442,35 +410,8 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     {
         $result = false;
 
-        try {
-            Database::getEM()->transactional(function (EntityManager $em) use ($transaction, &$result) {
-                $api = $this->getAPI();
-
-                $paymentTransaction = $transaction->getPaymentTransaction();
-                $em->lock($paymentTransaction, LockMode::PESSIMISTIC_WRITE);
-
-                try {
-                    $response = $api->cardTransactionAuthReversal($paymentTransaction->getDetail('transaction-id'));
-
-                    $processingInfo = $response['processing-info'];
-                    if ($processingInfo['processing-status'] === 'SUCCESS') {
-                        $transaction->setStatus(BackendTransaction::STATUS_SUCCESS);
-                        $paymentTransaction->setStatus(Transaction::STATUS_VOID);
-
-                        $result = true;
-                        TopMessage::getInstance()->addInfo('Payment have been voided successfully');
-                    }
-                } catch (APIException $e) {
-                    TopMessage::getInstance()
-                        ->addError('Transaction failure. CloverPayments response: ' . $e->getMessage() . ' Please contact CloverPayments support (merchants@CloverPayments.com) for further assistance');
-                }
-            });
-        } catch (\Exception $e) {
-            $this->getLogger('XC-CloverPayments')->error(__FUNCTION__, [
-                'request'          => Request::getInstance()->getData(),
-                'exceptionMessage' => $e->getMessage(),
-            ]);
-        }
+        TopMessage::getInstance()
+            ->addError('Transaction failure. Please contact CloverPayments support (ilya.i@skinact.com) for further assistance');
 
         return $result;
     }
@@ -497,8 +438,8 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                     $response = $api->refund(
                         $paymentTransaction->getDetail('transaction-id'),
                         $transaction->getValue() < $paymentTransaction->getValue()
-                            ? $transaction->getValue()
-                            : null
+                        ? $transaction->getValue()
+                        : null
                     );
 
                     if ($response) {
@@ -509,12 +450,12 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                     }
                 } catch (APIException $e) {
                     TopMessage::getInstance()
-                        ->addError('Transaction failure. CloverPayments response: ' . $e->getMessage() . ' Please contact CloverPayments support (merchants@CloverPayments.com) for further assistance');
+                        ->addError('Transaction failure. CloverPayments response: ' . $e->getMessage() . ' Please contact CloverPayments support (ilya.i@skinact.com) for further assistance');
                 }
             });
         } catch (\Exception $e) {
-            $this->getLogger('XC-CloverPayments')->error(__FUNCTION__, [
-                'request'          => Request::getInstance()->getData(),
+            $this->getLogger('CloverPayments')->error(__FUNCTION__, [
+                'request' => Request::getInstance()->getData(),
                 'exceptionMessage' => $e->getMessage(),
             ]);
         }
@@ -567,7 +508,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
 
         $request = \XLite\Core\Request::getInstance();
         if ($request->referenceNumber && $request->merchantTransactionId) {
-            $this->getLogger('XC-CloverPayments')->error(__FUNCTION__ . 'Callback', [
+            $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Callback', [
                 'request' => \XLite\Core\Request::getInstance()->getData(),
             ]);
 
@@ -603,9 +544,9 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     protected function canProcessIPN(\XLite\Model\Payment\Transaction $transaction)
     {
         return $transaction->getOrder()->getOrderNumber() && (
-                $transaction->isEntityLockExpired(\XLite\Model\Payment\Transaction::LOCK_TYPE_IPN)
-                || !$transaction->isEntityLocked(\XLite\Model\Payment\Transaction::LOCK_TYPE_IPN)
-            );
+            $transaction->isEntityLockExpired(\XLite\Model\Payment\Transaction::LOCK_TYPE_IPN)
+            || !$transaction->isEntityLocked(\XLite\Model\Payment\Transaction::LOCK_TYPE_IPN)
+        );
     }
 
     /**
@@ -659,7 +600,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                         $counts = array_count_values($this->getRefundedAmounts($transaction));
                         $unregisteredRefunds = array_values(
                             array_filter($CloverPaymentsRefunds, static function ($item) use (&$counts) {
-                                return empty($counts[$item]) || !$counts[$item]--;
+                                return empty ($counts[$item]) || !$counts[$item]--;
                             })
                         );
 
@@ -676,7 +617,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                                     && $tmpTransaction->getStatus() !== BackendTransaction::STATUS_SUCCESS
                                 ) {
                                     $tmpTransaction->setStatus(BackendTransaction::STATUS_SUCCESS);
-                                    unset($unregisteredRefunds[$k]);
+                                    unset ($unregisteredRefunds[$k]);
 
                                     $tmpTransaction->registerTransactionInOrderHistory('callback, IPN');
                                 }
@@ -690,8 +631,8 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                         foreach ($unregisteredRefunds as $refundAmount) {
                             $backendTransaction = $transaction->createBackendTransaction(
                                 $refundAmount === $transactionAmount
-                                    ? BackendTransaction::TRAN_TYPE_REFUND
-                                    : BackendTransaction::TRAN_TYPE_REFUND_PART
+                                ? BackendTransaction::TRAN_TYPE_REFUND
+                                : BackendTransaction::TRAN_TYPE_REFUND_PART
                             );
                             $backendTransaction->setValue($refundAmount);
                             $backendTransaction->setStatus(BackendTransaction::STATUS_SUCCESS);
@@ -699,7 +640,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                             $backendTransaction->registerTransactionInOrderHistory('callback, IPN');
                         }
 
-                        if (!empty($unregisteredRefunds) && $isChargeback) {
+                        if (!empty ($unregisteredRefunds) && $isChargeback) {
                             \XLite\Core\Mailer::sendCloverPaymentsChargeback(
                                 $transaction->getOrder(),
                                 \XLite\Core\Request::getInstance()->referenceNumber
@@ -707,8 +648,8 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                         }
                     });
                 } catch (\Exception $e) {
-                    $this->getLogger('XC-CloverPayments')->error(__FUNCTION__, [
-                        'request'          => Request::getInstance()->getData(),
+                    $this->getLogger('CloverPayments')->error(__FUNCTION__, [
+                        'request' => Request::getInstance()->getData(),
                         'exceptionMessage' => $e->getMessage(),
                     ]);
                 }
@@ -790,8 +731,8 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                 $transaction->setStatus($status);
             });
         } catch (\Exception $e) {
-            $this->getLogger('XC-CloverPayments')->error(__FUNCTION__, [
-                'request'          => Request::getInstance()->getData(),
+            $this->getLogger('CloverPayments')->error(__FUNCTION__, [
+                'request' => Request::getInstance()->getData(),
                 'exceptionMessage' => $e->getMessage(),
             ]);
         }
@@ -806,14 +747,13 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     {
         $data = parent::defineSavedData();
         $data['transaction-id'] = 'CloverPayments identifier for the transaction';
-        $data['vaulted-shopper-id'] = 'ID of an existing vaulted shopper';
+        $data['credit-card_first-six-digits'] = 'First six digits of the credit card';
         $data['credit-card_card-last-four-digits'] = 'Last four digits of the credit card';
-        $data['credit-card_card-type'] = 'Credit card type';
-        $data['credit-card_card-sub-type'] = 'Card sub-type, such as Credit or Debit';
-        $data['processing-info_cvv-response-code'] = 'CVV response';
+        $data['credit-card_brand'] = 'Card brand';
+        $data['credit-card_exp_month'] = 'Card exp. month';
+        $data['credit-card_exp_year'] = 'Card exp. year';
         $data['processing-info_avs-response-code-zip'] = 'ZIP AVS response';
         $data['processing-info_avs-response-code-address'] = 'Address AVS response code';
-        $data['processing-info_avs-response-code-name'] = 'Name AVS response';
 
         return $data;
     }

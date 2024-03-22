@@ -14,16 +14,16 @@ use XCart\Extender\Mapping\Extender;
  */
 class Transaction extends \XLite\Model\Payment\Transaction
 {
-    public const BLUESNAP_ERRORS_CELL = 'bluesnapErrors';
+    public const CLOVERPAYMENTS_ERRORS_CELL = 'CloverPaymentsErrors';
     /**
      * @return array|null
      */
-    public function getBluesnapFailureReasons()
+    public function getCloverPaymentsFailureReasons()
     {
-        $cell = $this->getDataCell(static::BLUESNAP_ERRORS_CELL);
+        $cell = $this->getDataCell(static::CLOVERPAYMENTS_ERRORS_CELL);
 
         if ($cell && $cell->getValue()) {
-            return (array)@json_decode($cell->getValue());
+            return (array) @json_decode($cell->getValue());
         }
 
         return null;

@@ -54,7 +54,7 @@ class CloverPaymentsAPI
     {
         return $this->config['mode'] === \XLite\View\FormField\Select\TestLiveMode::TEST
             ? 'https://scl-sandbox.dev.clover.com'
-            : 'https://clover.com';
+            : 'https://scl.clover.com';
     }
 
     // {{{ Token
@@ -153,6 +153,38 @@ class CloverPaymentsAPI
      * @return array
      * @throws \Iidev\CloverPayments\Core\APIException
      */
+    public function saveCardData(array $data)
+    {
+
+        $this->getLogger('CloverPayments')->error(print_r($data, true));
+
+        // if (!empty($this->config['soft_descriptor'])) {
+        //     $data['soft-descriptor'] = $this->config['soft_descriptor'];
+        // }
+
+        $headers = [
+            'x-forwarded-for' => $data['transaction-fraud-info']['shopper-ip-address'],
+        ];
+
+
+        $body = [
+            'firstName' => $data['card-holder-info']['first-name'],
+            'lastName' => $data['card-holder-info']['last-name'],
+            'email' => $data['card-holder-info']['email'],
+            'source' => $data['source'],
+        ];
+
+        $result = $this->doRequest('POST', 'v1/customers', json_encode($body), $headers);
+
+        return json_decode($result->body, true);
+    }
+
+    /**
+     * @param array $data
+     *
+     * @return array
+     * @throws \Iidev\CloverPayments\Core\APIException
+     */
     public function cardTransactionAuthCapture(array $data)
     {
 
@@ -163,19 +195,33 @@ class CloverPaymentsAPI
         //     $data['soft-descriptor'] = $this->config['soft_descriptor'];
         // }
 
+        $customerId = null;
+
+        if ($data['is-save-card']) {
+            $result = $this->saveCardData($data);
+            $this->getLogger('CloverPayments-savecard')->error(print_r($result, true));
+            $customerId = $result['id'];
+        }
+
         $headers = [
             'x-forwarded-for' => $data['transaction-fraud-info']['shopper-ip-address'],
         ];
 
+
         $body = [
             'amount' => $this->getAlignedAmount($data['amount']),
-            'source' => $data['source'],
+            'source' => $customerId ? $customerId : $data['source'],
             'currency' => $data['currency']
         ];
 
         $result = $this->doRequest('POST', 'v1/charges', json_encode($body), $headers);
+        $resultData = json_decode($result->body, true);
 
-        return json_decode($result->body, true);
+        if ($customerId) {
+            $resultData['customer_id'] = $customerId;
+        }
+
+        return $resultData;
     }
 
     /**

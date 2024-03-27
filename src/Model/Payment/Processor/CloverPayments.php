@@ -81,6 +81,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     public function isConfigured(\XLite\Model\Payment\Method $method)
     {
         return parent::isConfigured($method)
+            && $method->getSetting('mid')
             && $method->getSetting('username')
             && $method->getSetting('password')
             && $method->getSetting('soft_descriptor')
@@ -222,6 +223,16 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     /**
      * @return string
      */
+    protected function isSaveCard()
+    {
+        $request = \XLite\Core\Request::getInstance();
+
+        return (bool) $request->save_card;
+    }
+
+    /**
+     * @return string
+     */
     protected function getSource()
     {
         $request = \XLite\Core\Request::getInstance();
@@ -249,6 +260,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
         $result = [
             'merchant-transaction-id' => $this->getTransactionId(),
             'source' => $this->getSource(),
+            'is-save-card' => $this->isSaveCard(),
             'amount' => $amount,
             'currency' => $currency->getCode(),
             'card-holder-info' => array_filter($cardHolderInfo),
@@ -274,6 +286,9 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
 
         if (isset ($result['id'])) {
             $result['transaction-id'] = $result['id'];
+        }
+        if (isset ($result['source_id'])) {
+            $result['credit-card_token'] = $result['source_id'];
         }
         if (isset ($result['source_first6'])) {
             $result['credit-card_first-six-digits'] = $result['source_first6'];
@@ -747,6 +762,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     {
         $data = parent::defineSavedData();
         $data['transaction-id'] = 'CloverPayments identifier for the transaction';
+        $data['credit-card_token'] = 'Credit card token';
         $data['credit-card_first-six-digits'] = 'First six digits of the credit card';
         $data['credit-card_card-last-four-digits'] = 'Last four digits of the credit card';
         $data['credit-card_brand'] = 'Card brand';

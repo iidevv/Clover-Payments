@@ -3,6 +3,15 @@
  #}
 
 <ul class="table model-properties settings-table clover-payments">
+<li>
+    {{ widget('XLite\\View\\FormField\\Input\\Text',
+      fieldName='settings[mid]',
+      fieldId='settings_mid',
+      value=this.paymentMethod.getSetting('mid'),
+      label=t('Merchant ID (MID)'),
+      required='true'
+    ) }}
+  </li>
   <li>
     {{ widget('XLite\\View\\FormField\\Input\\Text',
       fieldName='settings[username]',

@@ -14,23 +14,5 @@ use XCart\Extender\Mapping\Extender;
  */
 class Checkout extends \XLite\Controller\Customer\Checkout
 {
-    protected function doActionResetBluesnapToken()
-    {
-        \Iidev\CloverPayments\Core\CloverPaymentsAPI::dropToken();
-    }
-
-    /**
-     * Define the actions with no secure token
-     *
-     * @return array
-     */
-    public static function defineFreeFormIdActions()
-    {
-        return array_merge(
-            parent::defineFreeFormIdActions(),
-            [
-                'reset_bluesnap_token',
-            ]
-        );
-    }
+    
 }

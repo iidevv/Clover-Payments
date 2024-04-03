@@ -25,12 +25,17 @@
 				<div id="card-postal-code" class="field third-width"></div>
 				<div class="input-errors" id="card-postal-code-errors" role="alert"></div>
 			</div>
-      <div class="form-row">
-        <label class="save-card-option">
-          <input type="checkbox" id="save-card" name="save_card" checked>
-          <span>I want to use this credit card for my future orders in this shop.</span>
-        </label>
-      </div>
+			{% if this.isProMembershipOrder() %}
+				<input type="hidden" id="save-card" name="save_card" checked>
+			{% else %}
+				<div class="form-row">
+					<label class="save-card-option">
+						<input type="checkbox" id="save-card" name="save_card" checked>
+						<span>I want to use this credit card for my future orders in this shop.</span>
+					</label>
+				</div>
+			{% endif %}
+			
 		{% else %}
 
 			<div class="key-unavailable">

@@ -54,4 +54,19 @@ class Order extends \XLite\Model\Order
 
         return parent::getFailureReason();
     }
+    /**
+     * Check if the order contains a pro membership item.
+     *
+     * @return bool
+     */
+    public static function isProMembershipInCart($items)
+    {
+        foreach ($items as $item) {
+            if ($item->getSku() === "PAIDMEMBERSHIP") {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

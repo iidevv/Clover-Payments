@@ -9,14 +9,16 @@ namespace Iidev\CloverPayments\View\Checkout;
 
 use XLite\Core\Cache\ExecuteCachedTrait;
 use Iidev\CloverPayments\Core\CloverPaymentsAPI;
+use XLite\Model\Cart;
+use XLite\InjectLoggerTrait;
 
 /**
  * BlueSnap widget
  */
 class CloverPayments extends \XLite\View\AView
 {
+    use InjectLoggerTrait;
     use ExecuteCachedTrait;
-
     /**
      * @return array
      */
@@ -91,6 +93,23 @@ class CloverPayments extends \XLite\View\AView
         return [
             'token' => $this->getToken(),
         ];
+    }
+
+    protected function getCurrentCartIfAvailable(): ?Cart
+    {
+        /** @noinspection PhpPossiblePolymorphicInvocationInspection */
+        return method_exists(\XLite::getController(), 'getCart')
+            ? \XLite::getController()->getCart(false)
+            : null;
+    }
+
+    protected function isProMembershipOrder()
+    {
+        if ($cart = $this->getCurrentCartIfAvailable()) {
+            return \XLite\Model\Order::isProMembershipInCart($cart->getItems());
+        }
+
+        return false;
     }
 
     /**

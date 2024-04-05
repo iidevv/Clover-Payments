@@ -249,13 +249,15 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
         $amount = $this->currencyFormat($this->transaction->getValue(), $currency);
 
         $profile = $this->transaction->getProfile();
+        $billingAddress = $profile->getBillingAddress();
+        $shippingAddress = $profile->getShippingAddress() ? $profile->getShippingAddress() : $billingAddress;
 
-        $cardHolderInfo = $this->prepareAddress($profile->getBillingAddress());
+        $cardHolderInfo = $this->prepareAddress($billingAddress);
         $cardHolderInfo['email'] = $profile->getLogin();
         $cardHolderInfo['address'] = $cardHolderInfo['address1'];
         unset($cardHolderInfo['address1']);
 
-        $shippingContactInfo = $this->prepareAddress($profile->getShippingAddress());
+        $shippingContactInfo = $this->prepareAddress($shippingAddress);
 
         $result = [
             'merchant-transaction-id' => $this->getTransactionId(),

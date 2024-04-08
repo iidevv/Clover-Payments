@@ -156,8 +156,6 @@ class CloverPaymentsAPI
     public function saveCardData(array $data)
     {
 
-        $this->getLogger('CloverPayments')->error(print_r($data, true));
-
         // if (!empty($this->config['soft_descriptor'])) {
         //     $data['soft-descriptor'] = $this->config['soft_descriptor'];
         // }
@@ -199,7 +197,6 @@ class CloverPaymentsAPI
 
         if ($data['is-save-card']) {
             $result = $this->saveCardData($data);
-            $this->getLogger('CloverPayments-savecard')->error(print_r($result, true));
             $customerId = $result['id'];
         }
 
@@ -284,7 +281,7 @@ class CloverPaymentsAPI
      */
     protected function doRequest($method, $path, $data = '', $headers = [])
     {
-        $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Request', [
+        $this->getLogger('CloverPayments')->debug(__FUNCTION__ . 'Request', [
             $method,
             $path,
             $data
@@ -307,7 +304,7 @@ class CloverPaymentsAPI
 
         $request->body = $data;
 
-        $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Request', [
+        $this->getLogger('CloverPayments')->debug(__FUNCTION__ . 'Request', [
             $method,
             $url,
             $request->headers,
@@ -316,7 +313,7 @@ class CloverPaymentsAPI
 
         $response = $request->sendRequest();
 
-        $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Response', [
+        $this->getLogger('CloverPayments')->debug(__FUNCTION__ . 'Response', [
             $method,
             $url,
             $response ? $response->headers : 'empty',

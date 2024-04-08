@@ -43,7 +43,7 @@ XLite\Model\Notification:
         adminText: '<p dir="ltr">No merchant likes chargebacks, but they&rsquo;re part of eCommerce. Unfortunately, one is coming your way. Here&rsquo;s what you need to know:</p><p dir="ltr">CloverPayments has received a <strong>%order_total%</strong> chargeback for the order <a href="%order_link%"><strong>#%order_number%</strong></a> and automatically refunded it. That could happen because your customer:</p><ul><li dir="ltr">didn&rsquo;t receive the item</li><li>received the item, but it was damaged</li><li>Was the victim of fraud or identity theft</li></ul><p dir="ltr">If you&rsquo;d like to know more, please log in to your CloverPayments account and use the order locator. Or just hit reply, I&rsquo;ll do my best to help you.</p>'
 
 XLite\Model\LanguageLabel:
-- name: "mid"
+  - name: "mid"
     translations: [{ code: en, label: "Merchant ID (MID)" }]
   - name: "API Login"
     translations: [{ code: en, label: "API Login" }]

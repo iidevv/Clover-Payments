@@ -135,8 +135,21 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                     $backendTransaction->setStatus(BackendTransaction::STATUS_SUCCESS);
                 }
             }
+            $alignedData = $this->prepareDataToSave($response);
 
-            $this->saveFilteredData($this->prepareDataToSave($response));
+            $this->saveFilteredData($alignedData);
+
+            if ($data['is-save-card']) {
+                $this->transaction->saveCard(
+                    $alignedData['source_first6'],
+                    $alignedData['source_last4'],
+                    $alignedData['source_brand'],
+                    $alignedData['source_exp_month'],
+                    $alignedData['source_exp_year']
+                );
+                $transaction->getXpcData()->setBillingAddress($data['billing-address']);
+                $transaction->getXpcData()->setUseForRecharges('Y');
+            }
 
         } catch (APIException $e) {
             $this->transaction->setNote($e->getMessage());
@@ -266,6 +279,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
             'amount' => $amount,
             'currency' => $currency->getCode(),
             'card-holder-info' => array_filter($cardHolderInfo),
+            'billing-address' => $billingAddress,
             'transaction-fraud-info' => [
                 'shipping-contact-info' => $shippingContactInfo,
                 'shopper-ip-address' => \XLite\Core\Request::getInstance()->getClientIp(),

@@ -10,12 +10,16 @@ namespace Iidev\CloverPayments\Core;
 use XCart\Extender\Mapping\Extender;
 use XCart\Messenger\Message\SendMail;
 use Iidev\CloverPayments\Core\Mail\CloverPaymentsChargeback;
+use Qualiteam\SkinActXPaymentsSubscriptions\Model\Subscription;
+
+use XLite\InjectLoggerTrait;
 
 /**
  * @Extender\Mixin
  */
 abstract class Mailer extends \XLite\Core\Mailer
 {
+    use InjectLoggerTrait;
     /**
      * @param \XLite\Model\Order $order
      * @param string             $referenceNumber
@@ -23,5 +27,17 @@ abstract class Mailer extends \XLite\Core\Mailer
     public static function sendCloverPaymentsChargeback(\XLite\Model\Order $order, $referenceNumber)
     {
         static::getBus()->dispatch(new SendMail(CloverPaymentsChargeback::class, [$order, $referenceNumber]));
+    }
+
+    /**
+     * Send subscription status details notification
+     *
+     * @param Subscription $subscription Subscription
+     *
+     * @return void
+     */
+    public static function sendSubscriptionStatus(Subscription $subscription)
+    {
+
     }
 }

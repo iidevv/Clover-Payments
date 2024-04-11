@@ -3,8 +3,23 @@
  #}
 <div class="payment-form-container">
 	{% if this.getPublicKey() %}
-		<span class="payment-form-label">{{ t('Secure credit/debit card payment') }}</span>
+		{% if this.getSavedCards() %}
+			<div class="saved-card-info">
+				<span class="payment-form-label">{{ t('Saved Payment Methods') }}</span>
+				<select id="saved-card" name="saved_card_select" class="form-control">
+					<option value="">{{ t('Select Payment Methods') }}</option>
+					{% for card in this.getSavedCards() %}
+						<option value="{{ card.transaction_id }}">
+							{{card.card_type}}
+							|
+							{{ card.card_number }}
+						</option>
+					{% endfor %}
+				</select>
+			</div>
+		{% endif %}
 		<div id="payment-form" data-key="{{ this.getPublicKey() }}">
+			<span class="payment-form-label">{{ t('Secure credit/debit card payment') }}</span>
 			<div class="form-row top-row">
 				<div id="card-number" class="field card-number"></div>
 				<div class="input-errors" id="card-number-errors" role="alert"></div>
@@ -35,7 +50,7 @@
 					</label>
 				</div>
 			{% endif %}
-			
+
 		{% else %}
 
 			<div class="key-unavailable">
@@ -45,6 +60,5 @@
 			</div>
 
 		{% endif %}
-
 	</div>
 </div>

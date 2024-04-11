@@ -194,8 +194,18 @@ class CloverPaymentsAPI
         // }
 
         $customerId = null;
+        
+        if ($data['saved-card-select']) {
 
-        if ($data['is-save-card']) {
+            $customer = \XLite\Core\Database::getRepo(\XLite\Model\Payment\TransactionData::class)
+                ->findOneBy(['transaction' => $data['saved-card-select'], 'name' => 'credit-card_token']);
+
+            if ($customer) {
+                $customerId = $customer->getValue();
+            }
+        }
+
+        if ($data['is-save-card'] && !$customerId) {
             $result = $this->saveCardData($data);
             $customerId = $result['id'];
         }
@@ -281,7 +291,7 @@ class CloverPaymentsAPI
      */
     protected function doRequest($method, $path, $data = '', $headers = [])
     {
-        $this->getLogger('CloverPayments')->debug(__FUNCTION__ . 'Request', [
+        $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Request', [
             $method,
             $path,
             $data
@@ -304,7 +314,7 @@ class CloverPaymentsAPI
 
         $request->body = $data;
 
-        $this->getLogger('CloverPayments')->debug(__FUNCTION__ . 'Request', [
+        $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Request', [
             $method,
             $url,
             $request->headers,
@@ -313,7 +323,7 @@ class CloverPaymentsAPI
 
         $response = $request->sendRequest();
 
-        $this->getLogger('CloverPayments')->debug(__FUNCTION__ . 'Response', [
+        $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Response', [
             $method,
             $url,
             $response ? $response->headers : 'empty',

@@ -137,9 +137,11 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
             }
             $alignedData = $this->prepareDataToSave($response);
 
-            $this->saveFilteredData($alignedData);
+            if (!$data['saved-card-select']) {
+                $this->saveFilteredData($alignedData);
+            }
 
-            if ($data['is-save-card']) {
+            if ($data['is-save-card'] && !$data['saved-card-select']) {
                 $this->transaction->saveCard(
                     $alignedData['source_first6'],
                     $alignedData['source_last4'],
@@ -254,6 +256,16 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     }
 
     /**
+     * @return string
+     */
+    protected function getSavedCard()
+    {
+        $request = \XLite\Core\Request::getInstance();
+
+        return $request->saved_card_select;
+    }
+
+    /**
      * @return array
      */
     protected function getInitialPaymentData()
@@ -275,6 +287,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
         $result = [
             'merchant-transaction-id' => $this->getTransactionId(),
             'source' => $this->getSource(),
+            'saved-card-select' => $this->getSavedCard(),
             'is-save-card' => $this->isSaveCard(),
             'amount' => $amount,
             'currency' => $currency->getCode(),

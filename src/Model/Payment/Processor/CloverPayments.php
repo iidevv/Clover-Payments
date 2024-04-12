@@ -266,6 +266,16 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     }
 
     /**
+     * @return string
+     */
+    protected function isProMembership()
+    {
+        $request = \XLite\Core\Request::getInstance();
+
+        return $request->pro_membership;
+    }
+
+    /**
      * @return array
      */
     protected function getInitialPaymentData()
@@ -289,6 +299,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
             'source' => $this->getSource(),
             'saved-card-select' => $this->getSavedCard(),
             'is-save-card' => $this->isSaveCard(),
+            'pro-membership' => $this->isProMembership(),
             'amount' => $amount,
             'currency' => $currency->getCode(),
             'card-holder-info' => array_filter($cardHolderInfo),

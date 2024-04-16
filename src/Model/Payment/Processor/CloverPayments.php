@@ -18,6 +18,7 @@ use XLite\Model\Payment\BackendTransaction;
 use XLite\Model\Payment\Transaction;
 use Iidev\CloverPayments\Core\APIException;
 use Iidev\CloverPayments\Core\CloverPaymentsAPI;
+use Qualiteam\SkinActXPaymentsConnector\Model\Payment\XpcTransactionData;
 
 /**
  * CloverPayments processor
@@ -115,6 +116,8 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
      */
     protected function doInitialPayment()
     {
+        $this->transaction->getOrder()->initSubscriptions();
+
         $result = static::FAILED;
 
         try {
@@ -153,6 +156,10 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                 $transaction->getXpcData()->setUseForRecharges('Y');
             }
 
+            if ($data['is-save-card'] && $data['pro-membership']) {
+                $this->setSubscriptionCard($data['saved-card-select']);
+            }
+
         } catch (APIException $e) {
             $this->transaction->setNote($e->getMessage());
             $this->transaction->setDataCell('status', $e->getMessage());
@@ -168,7 +175,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                 }
             }
 
-            if (!empty ($errors)) {
+            if (!empty($errors)) {
                 $this->transaction->setDataCell(
                     \Iidev\CloverPayments\Model\Payment\Transaction::CLOVERPAYMENTS_ERRORS_CELL,
                     json_encode(array_unique($errors)),
@@ -181,6 +188,30 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
         return $result;
     }
 
+    protected function setSubscriptionCard($transaction_id)
+    {
+        $transaction = $this->transaction;
+        $card = null;
+
+        if ($transaction_id) {
+            $card = Database::getRepo(XpcTransactionData::class)
+                ->findOneBy([
+                    'transaction' => intval($transaction_id)
+                ]);
+        } else {
+            $card = Database::getRepo(XpcTransactionData::class)
+                ->findOneBy([
+                    'card_number' => $transaction->getXpcData()->getCardNumber(),
+                    'card_type' => $transaction->getXpcData()->getCardType(),
+                    'card_expire' => $transaction->getXpcData()->getCardExpire()
+                ]);
+        }
+
+        if (!$card)
+            return;
+
+        $transaction->getOrder()->setSavedCardForSubscriptions($card);
+    }
     protected function processErrorCode($code, $name = null, $description = null)
     {
         switch ($code) {
@@ -324,31 +355,31 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     {
         $result = $this->alignArray($data);
 
-        if (isset ($result['id'])) {
+        if (isset($result['id'])) {
             $result['transaction-id'] = $result['id'];
         }
-        if (isset ($result['source_id'])) {
+        if (isset($result['source_id'])) {
             $result['credit-card_token'] = $result['source_id'];
         }
-        if (isset ($result['source_first6'])) {
+        if (isset($result['source_first6'])) {
             $result['credit-card_first-six-digits'] = $result['source_first6'];
         }
-        if (isset ($result['source_last4'])) {
+        if (isset($result['source_last4'])) {
             $result['credit-card_card-last-four-digits'] = $result['source_last4'];
         }
-        if (isset ($result['source_brand'])) {
+        if (isset($result['source_brand'])) {
             $result['credit-card_brand'] = $result['source_brand'];
         }
-        if (isset ($result['source_exp_month'])) {
+        if (isset($result['source_exp_month'])) {
             $result['credit-card_exp_month'] = $result['source_exp_month'];
         }
-        if (isset ($result['source_exp_year'])) {
+        if (isset($result['source_exp_year'])) {
             $result['credit-card_exp_year'] = $result['source_exp_year'];
         }
-        if (isset ($result['source_address_zip_check'])) {
+        if (isset($result['source_address_zip_check'])) {
             $result['processing-info_avs-response-code-zip'] = $result['source_address_zip_check'];
         }
-        if (isset ($result['source_address_line1_check'])) {
+        if (isset($result['source_address_line1_check'])) {
             $result['processing-info_avs-response-code-address'] = $result['source_address_line1_check'];
         }
 

@@ -291,7 +291,7 @@ class CloverPaymentsAPI
      */
     protected function doRequest($method, $path, $data = '', $headers = [])
     {
-        $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Request', [
+        $this->getLogger('CloverPayments')->debug(__FUNCTION__ . 'Request', [
             $method,
             $path,
             $data
@@ -314,7 +314,7 @@ class CloverPaymentsAPI
 
         $request->body = $data;
 
-        $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Request', [
+        $this->getLogger('CloverPayments')->debug(__FUNCTION__ . 'Request', [
             $method,
             $url,
             $request->headers,
@@ -323,7 +323,7 @@ class CloverPaymentsAPI
 
         $response = $request->sendRequest();
 
-        $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Response', [
+        $this->getLogger('CloverPayments')->debug(__FUNCTION__ . 'Response', [
             $method,
             $url,
             $response ? $response->headers : 'empty',

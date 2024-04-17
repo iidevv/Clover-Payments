@@ -117,8 +117,6 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
      */
     protected function doInitialPayment()
     {
-        $this->transaction->getOrder()->initSubscriptions();
-
         $result = static::FAILED;
 
         try {
@@ -158,6 +156,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
             }
 
             if ($data['is-save-card'] && $data['pro-membership']) {
+                $this->transaction->getOrder()->initSubscriptions();
                 $this->setSubscriptionCard($data['saved-card-select']);
             }
 
@@ -367,28 +366,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
             $result['transaction-id'] = $result['id'];
         }
         if (isset($result['source_id'])) {
-            $result['credit-card_token'] = $result['source_id'];
-        }
-        if (isset($result['source_first6'])) {
-            $result['credit-card_first-six-digits'] = $result['source_first6'];
-        }
-        if (isset($result['source_last4'])) {
-            $result['credit-card_card-last-four-digits'] = $result['source_last4'];
-        }
-        if (isset($result['source_brand'])) {
-            $result['credit-card_brand'] = $result['source_brand'];
-        }
-        if (isset($result['source_exp_month'])) {
-            $result['credit-card_exp_month'] = $result['source_exp_month'];
-        }
-        if (isset($result['source_exp_year'])) {
-            $result['credit-card_exp_year'] = $result['source_exp_year'];
-        }
-        if (isset($result['source_address_zip_check'])) {
-            $result['processing-info_avs-response-code-zip'] = $result['source_address_zip_check'];
-        }
-        if (isset($result['source_address_line1_check'])) {
-            $result['processing-info_avs-response-code-address'] = $result['source_address_line1_check'];
+            $result['card-token'] = $result['source_id'];
         }
 
         return $result;
@@ -856,14 +834,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     {
         $data = parent::defineSavedData();
         $data['transaction-id'] = 'CloverPayments identifier for the transaction';
-        $data['credit-card_token'] = 'Credit card token';
-        $data['credit-card_first-six-digits'] = 'First six digits of the credit card';
-        $data['credit-card_card-last-four-digits'] = 'Last four digits of the credit card';
-        $data['credit-card_brand'] = 'Card brand';
-        $data['credit-card_exp_month'] = 'Card exp. month';
-        $data['credit-card_exp_year'] = 'Card exp. year';
-        $data['processing-info_avs-response-code-zip'] = 'ZIP AVS response';
-        $data['processing-info_avs-response-code-address'] = 'Address AVS response code';
+        $data['card-token'] = 'Credit card token';
 
         return $data;
     }

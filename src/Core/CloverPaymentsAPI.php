@@ -186,19 +186,18 @@ class CloverPaymentsAPI
     public function cardTransactionAuthCapture(array $data)
     {
 
-        // $data['card-transaction-type'] = 'AUTH_CAPTURE';
-        // $data['recurring-transaction'] = 'ECOMMERCE';
+        $description = null;
 
-        // if (!empty($this->config['soft_descriptor'])) {
-        //     $data['soft-descriptor'] = $this->config['soft_descriptor'];
-        // }
+        if (!empty($this->config['soft_descriptor'])) {
+            $description = $this->config['soft_descriptor'];
+        }
 
         $customerId = null;
         
         if ($data['saved-card-select']) {
 
             $customer = \XLite\Core\Database::getRepo(\XLite\Model\Payment\TransactionData::class)
-                ->findOneBy(['transaction' => $data['saved-card-select'], 'name' => 'credit-card_token']);
+                ->findOneBy(['transaction' => $data['saved-card-select'], 'name' => 'card-token']);
 
             if ($customer) {
                 $customerId = $customer->getValue();
@@ -218,6 +217,7 @@ class CloverPaymentsAPI
         $body = [
             'amount' => $this->getAlignedAmount($data['amount']),
             'source' => $customerId ? $customerId : $data['source'],
+            'description' => $description ? $description : "",
             'currency' => $data['currency']
         ];
 

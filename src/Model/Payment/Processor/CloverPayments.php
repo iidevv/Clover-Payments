@@ -158,6 +158,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
 
             if ($data['is-save-card'] && $data['pro-membership']) {
                 $this->setSubscriptionCard($data['saved-card-select']);
+                $this->getLogger('CloverPayments saved-card-select')->error($data['saved-card-select']);
             }
 
         } catch (APIException $e) {
@@ -292,8 +293,9 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     protected function getSavedCard()
     {
         $request = \XLite\Core\Request::getInstance();
+        $card = $request->saved_card_select ? $request->saved_card_select : null;
 
-        return $request->saved_card_select;
+        return $card;
     }
 
     /**
@@ -315,8 +317,14 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
         $amount = $this->currencyFormat($this->transaction->getValue(), $currency);
 
         $profile = $this->transaction->getProfile();
+
+        // set Shipping address same as billing if pro membership order only
+        if (!$profile->getShippingAddress() && $profile->getBillingAddress()) {
+            $profile->setShippingAddress($profile->getBillingAddress());
+        }
+
         $billingAddress = $profile->getBillingAddress();
-        $shippingAddress = $profile->getShippingAddress() ? $profile->getShippingAddress() : $billingAddress;
+        $shippingAddress = $profile->getShippingAddress();
 
         $cardHolderInfo = $this->prepareAddress($billingAddress);
         $cardHolderInfo['email'] = $profile->getLogin();

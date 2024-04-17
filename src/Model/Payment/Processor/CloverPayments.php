@@ -16,6 +16,7 @@ use XLite\Core\TopMessage;
 use XLite\InjectLoggerTrait;
 use XLite\Model\Payment\BackendTransaction;
 use XLite\Model\Payment\Transaction;
+use XLite\Model\Order;
 use Iidev\CloverPayments\Core\APIException;
 use Iidev\CloverPayments\Core\CloverPaymentsAPI;
 use Qualiteam\SkinActXPaymentsConnector\Model\Payment\XpcTransactionData;
@@ -158,7 +159,6 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
 
             if ($data['is-save-card'] && $data['pro-membership']) {
                 $this->setSubscriptionCard($data['saved-card-select']);
-                $this->getLogger('CloverPayments saved-card-select')->error($data['saved-card-select']);
             }
 
         } catch (APIException $e) {
@@ -589,6 +589,21 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     protected function doRefundMulti(BackendTransaction $transaction)
     {
         return $this->performRefund($transaction);
+    }
+
+    /**
+     *
+     * @param Order $order Order which is recharged
+     * @param Transaction $parentCardTransaction Transaction with saved card
+     * @param float $amount Amount to recharge
+     * @param boolean $sendCart Send or not cart in request OPTIONAL
+     *
+     * @return boolean
+     */
+    public function doRecharge(Order $order, Transaction $parentCardTransaction, $amount, $sendCart = true)
+    {
+        $this->getLogger('CloverPayments doRecharge')->error('getOrderId '. $order->getOrderId());
+        return false;
     }
 
     /**

@@ -602,7 +602,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
      */
     public function doRecharge(Order $order, Transaction $parentCardTransaction, $amount, $sendCart = true)
     {
-        $this->getLogger('CloverPayments doRecharge')->error('getOrderId '. $order->getOrderId());
+        $this->getLogger('CloverPayments doRecharge')->error('getOrderId ' . $order->getOrderId());
         return false;
     }
 

@@ -418,7 +418,7 @@ class CloverPaymentsCronCommand extends Command
             // Add saved card to request
             $card = $subscription->getXpcData();
             if ($card) {
-                Request::getInstance()->payment = ['saved_card_id' => $card->getId()];
+                Request::getInstance()->saved_card_select = $card->getTransaction();
             }
 
             // Execute payment

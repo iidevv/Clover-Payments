@@ -1,0 +1,28 @@
+{##
+ # X-Payments card
+ #
+ #}
+<div id={{ this.get('card').card_id }}>
+	<svg width="36" height="24" viewbox="0 0 36 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+		<g clip-path="url(#clip0_242_37)">
+			<path d="M36 21.5V12H0V21.5C0 22.1875 0.244792 22.776 0.734375 23.2656C1.22396 23.7552 1.8125 24 2.5 24H33.5C34.1875 24 34.776 23.7552 35.2656 23.2656C35.7552 22.776 36 22.1875 36 21.5ZM26 18V20H20V18H26ZM32 18V20H28V18H32ZM2.5 0C1.8125 0 1.22396 0.244792 0.734375 0.734375C0.244792 1.22396 0 1.8125 0 2.5V6H36V2.5C36 1.8125 35.7552 1.22396 35.2656 0.734375C34.776 0.244792 34.1875 0 33.5 0H2.5Z" fill="#27394C"/>
+		</g>
+		<defs>
+			<clipPath id="clip0_242_37">
+				<rect width="36" height="24" fill="white" transform="matrix(-1 0 0 1 36 0)"/>
+			</clipPath>
+		</defs>
+	</svg>
+
+	{% if this.get('card').card_type %}
+		{{ this.get('card').card_type }}
+		|
+	{% endif %}
+	{% if this.get('card').card_number %}
+		{{ this.get('card').card_number }}
+		|
+	{% endif %}
+	{% if this.get('card').expire %}
+		{{ this.get('card').expire }}
+	{% endif %}
+</div>

@@ -1,0 +1,13 @@
+{##
+ # X-Payments Saved cards table 
+ #}
+
+<table class="cards" style="margin-bottom: 30px;">
+	{% for card in this.getCards() %}
+		<tr>
+			<td class="title-column">
+				{{ widget('\\Iidev\\CloverPayments\\View\\Card', card=card) }}
+			</td>
+		</tr>
+	{% endfor %}
+</table>

@@ -1,0 +1,48 @@
+{##
+ # X-Payments Saved cards table 
+ #}
+<h2>{{ t('Saved cards you can use for new orders') }}</h2>
+<div>
+
+  {% form '\\XPay\\XPaymentsCloud\\View\\Form\\XpaymentsCards' %}
+
+  <table class="xpayments-cards">
+    {% for card in this.getCards() %}
+      <tr>
+        <td class="title-column">
+
+          {{ widget('\\XPay\\XPaymentsCloud\\View\\Card', card=card) }}
+
+          {% if not card.isActive %}
+            <div class="warning">
+              {{ t('This card cannot be used during the checkout, it is either expired or disabled') }}
+            </div>
+          {% endif %}
+
+          {% if card.isUsedInSubscriptions %}
+            <div class="warning">
+              {{ t('This credit card is used for a subscription. To remove it, you need to cancel the subscription first.') }}
+            </div>
+          {% endif %}
+
+          {% if card.isUsedInDelayedPaymentOrder %}
+            <div class="warning">
+              {{ t('This credit card is used for a delayed payment order. To remove it, you need to complete the payment first.') }}
+            </div>
+          {% endif %}
+
+        </td>
+
+        <td class="remove-column">
+          {% if card.canBeDeleted %}
+            {{ widget('\\XLite\\View\\Button\\ConfirmRegular', confirmText=t('Are you sure you want to delete this card?'), label='', title=t('Delete card'), style='delete-card', action='remove', formParams={'card_id': card.cardId} ) }}
+          {% endif %}
+        </td>
+
+      </tr>  
+    {% endfor %}
+  </table>
+
+  {% endform %}
+
+</div>

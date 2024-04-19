@@ -1,10 +1,5 @@
 <?php
 
-/**
- * Copyright (c) 2011-present Qualiteam software Ltd. All rights reserved.
- * See https://www.x-cart.com/license-agreement.html for license details.
- */
-
 namespace Iidev\CloverPayments\View\Checkout;
 
 use XLite\Core\Cache\ExecuteCachedTrait;
@@ -13,12 +8,26 @@ use XLite\Model\Cart;
 use XLite\InjectLoggerTrait;
 
 /**
- * BlueSnap widget
+ * CloverPayments widget
  */
 class CloverPayments extends \XLite\View\AView
 {
     use InjectLoggerTrait;
     use ExecuteCachedTrait;
+    public const PARAM_MODE = 'mode';
+    protected $mode;
+
+    protected function defineWidgetParams()
+    {
+        parent::defineWidgetParams();
+        $this->widgetParams[static::PARAM_MODE] = new \XLite\Model\WidgetParam\TypeString('Mode of operation', 'checkout', true);
+    }
+
+    protected function initMode()
+    {
+        $this->mode = $this->getParam(static::PARAM_MODE);
+    }
+
     /**
      * @return array
      */
@@ -102,6 +111,14 @@ class CloverPayments extends \XLite\View\AView
             ? \XLite::getController()->getCart(false)
             : null;
     }
+
+    protected function isAddCardMode()
+    {
+        $this->initMode();
+
+        return $this->mode === 'add_card';
+    }
+
 
     protected function isProMembershipOrder()
     {

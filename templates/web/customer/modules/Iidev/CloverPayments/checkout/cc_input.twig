@@ -3,7 +3,7 @@
  #}
 <div class="payment-form-container">
 	{% if this.getPublicKey() %}
-		{% if this.getSavedCards() %}
+		{% if this.getSavedCards() and not this.isAddCardMode() %}
 			<div class="saved-card-info">
 				<span class="payment-form-label">{{ t('Saved Payment Methods') }}</span>
 				<select id="saved-card" name="saved_card_select" class="form-control" autocomplete="nope">
@@ -43,6 +43,8 @@
 			{% if this.isProMembershipOrder() %}
 				<input type="hidden" id="save-card" name="save_card" value="true">
 				<input type="hidden" id="pro-membership" name="pro_membership" value="true">
+			{% elseif this.isAddCardMode() %}
+				<input type="hidden" id="save-card" name="save_card" value="true">
 			{% else %}
 				<div class="form-row">
 					<label class="save-card-option">

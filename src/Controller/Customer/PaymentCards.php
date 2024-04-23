@@ -16,7 +16,7 @@ class PaymentCards extends \XLite\Controller\Customer\ACustomer
      */
     public function getCards()
     {
-        return $this->getProfile()->getAllSavedCards();
+        return $this->getProfile()->getSavedCards();
     }
     public function isSaveCardsAllowed()
     {

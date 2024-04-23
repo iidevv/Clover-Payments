@@ -195,10 +195,17 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
      */
     public function doCardSetup($paymentMethod, \XLite\Model\Profile $profile, \XLite\Model\Address $address)
     {
+        $order = new Order();
+        $order->setOrderNumber(Database::getRepo(Order::class)->findNextOrderNumber());
+        $order->setProfile($profile);
+        $order->setAdminNotes('Card setup order.');
+        $order->create();
+
         $this->transaction = new Transaction();
 
         $this->transaction->setPaymentMethod($paymentMethod);
         $this->transaction->setValue(1);
+        $this->transaction->setOrder($order);
 
         $transaction = $this->transaction;
         $backendTransaction = $transaction->createBackendTransaction(

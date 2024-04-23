@@ -4,7 +4,8 @@ namespace Iidev\CloverPayments\Controller\Customer;
 
 use \XLite\Core\Request;
 use \XLite\Core\TopMessage;
-use XPay\XPaymentsCloud\Main as XPaymentsHelper;
+use XLite\Core\Database;
+use Iidev\CloverPayments\Model\Payment\Processor\CloverPayments;
 
 class PaymentCards extends \XLite\Controller\Customer\ACustomer
 {
@@ -15,7 +16,7 @@ class PaymentCards extends \XLite\Controller\Customer\ACustomer
      */
     public function getCards()
     {
-        return $this->getProfile()->getSavedCards();
+        return $this->getProfile()->getAllSavedCards();
     }
     public function isSaveCardsAllowed()
     {
@@ -26,20 +27,41 @@ class PaymentCards extends \XLite\Controller\Customer\ACustomer
         return true;
     }
 
+    /**
+     * Get payment method
+     *
+     * @return \XLite\Model\Payment\Method
+     */
+    protected function getPaymentMethod()
+    {
+        $class = CloverPayments::class;
+
+        return Database::getRepo(\XLite\Model\Payment\Method::class)->findOneBy(
+            [
+                'class' => $class,
+            ]
+        );
+    }
+
     protected function doActionCardSetup()
     {
-        \XLite\Core\Session::getInstance()->xpaymentsCardSetupData = null;
+        if (!Request::getInstance()->source)
+            return;
 
-        $processor = null;
+        $paymentMethod = $this->getPaymentMethod();
+        $processor = $this->getPaymentMethod()->getProcessor();
+
+        $profile = $this->getProfile();
+
 
         /** @var \XLite\Model\Address $address */
-        $address = \XLite\Core\Database::getRepo('XLite\Model\Address')->find(Request::getInstance()->addressId);
+        $address = Database::getRepo('XLite\Model\Address')->find(Request::getInstance()->addressId);
 
         if (
             $address
-            && $address->getProfile()->getProfileId() === $this->getCustomerProfile()->getProfileId()
+            && $address->getProfile()->getProfileId() === $this->getProfile()->getProfileId()
         ) {
-            $response = '';
+            $processor->doCardSetup($paymentMethod, $profile, $address);
         } else {
             TopMessage::addError('Invalid profile address!');
         }

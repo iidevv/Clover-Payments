@@ -188,6 +188,68 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
         return $result;
     }
 
+    /**
+     * Card Setup request
+     *
+     * @return string
+     */
+    public function doCardSetup($paymentMethod, \XLite\Model\Profile $profile, \XLite\Model\Address $address)
+    {
+        $this->transaction = new Transaction();
+
+        $this->transaction->setPaymentMethod($paymentMethod);
+        $this->transaction->setValue(1);
+
+        $transaction = $this->transaction;
+        $backendTransaction = $transaction->createBackendTransaction(
+            BackendTransaction::TRAN_TYPE_SALE
+        );
+        $backendTransaction->setValue($transaction->getValue());
+        $backendTransaction->setStatus(BackendTransaction::STATUS_SUCCESS);
+
+        try {
+            $api = $this->getAPI();
+            $data = $this->getInitialCardSetupData($profile, $address);
+
+            $response = $api->cardTransactionAuthCapture($data);
+
+            if ($response['status'] === 'succeeded') {
+                $alignedData = $this->prepareDataToSave($response);
+                $this->saveFilteredData($alignedData);
+
+                $this->transaction->setPublicTxnId($alignedData['transaction-id']);
+
+                $this->transaction->saveCard(
+                    $alignedData['source_first6'],
+                    $alignedData['source_last4'],
+                    $alignedData['source_brand'],
+                    $alignedData['source_exp_month'],
+                    $alignedData['source_exp_year']
+                );
+
+                $transaction->getXpcData()->setBillingAddress($data['billing-address']);
+                $transaction->getXpcData()->setUseForRecharges('Y');
+
+                Database::getEM()->persist($transaction);
+                Database::getEM()->flush();
+
+                sleep(5);
+                $api->refund(
+                    $alignedData['transaction-id'],
+                    null
+                );
+
+            }
+        } catch (\Exception $e) {
+            $this->getLogger('CloverPayments processCardSetup')->error(__FUNCTION__, [
+                'request' => Request::getInstance()->getData(),
+                'exceptionMessage' => $e->getMessage(),
+            ]);
+        }
+
+        return $response;
+    }
+    
     protected function setSubscriptionCard($transaction_id)
     {
         $transaction = $this->transaction;
@@ -336,7 +398,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
             'merchant-transaction-id' => $this->getTransactionId(),
             'source' => $this->getSource(),
             'saved-card-select' => $this->getSavedCard(),
-            'is-save-card' => $this->isSaveCard(),
+            'is-save-card' => true,
             'pro-membership' => $this->isProMembership(),
             'amount' => $amount,
             'currency' => $currency->getCode(),
@@ -345,6 +407,46 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
             'transaction-fraud-info' => [
                 'shipping-contact-info' => $shippingContactInfo,
                 'shopper-ip-address' => \XLite\Core\Request::getInstance()->getClientIp(),
+            ],
+        ];
+
+        return $result;
+    }
+
+    /**
+     * @return array
+     */
+    protected function getInitialCardSetupData($profile, $address)
+    {
+
+        // set Shipping address same as billing if pro membership order only
+        if (!$profile->getShippingAddress() && $address) {
+            $profile->setShippingAddress($profile->getBillingAddress());
+        }
+
+        $billingAddress = $address;
+        $shippingAddress = $profile->getShippingAddress();
+
+        $cardHolderInfo = $this->prepareAddress($billingAddress);
+        $cardHolderInfo['email'] = $profile->getLogin();
+        $cardHolderInfo['address'] = $cardHolderInfo['address1'];
+        unset($cardHolderInfo['address1']);
+
+        $shippingContactInfo = $this->prepareAddress($shippingAddress);
+
+        $result = [
+            'merchant-transaction-id' => $this->getTransactionId(),
+            'source' => $this->getSource(),
+            'saved-card-select' => null,
+            'is-save-card' => $this->isSaveCard(),
+            'pro-membership' => $this->isProMembership(),
+            'amount' => 1,
+            'currency' => 'USD',
+            'card-holder-info' => array_filter($cardHolderInfo),
+            'billing-address' => $billingAddress,
+            'transaction-fraud-info' => [
+                'shipping-contact-info' => $shippingContactInfo,
+                'shopper-ip-address' => Request::getInstance()->getClientIp(),
             ],
         ];
 
@@ -615,6 +717,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                     );
                 }
             } catch (APIException $e) {
+
             }
         }
 

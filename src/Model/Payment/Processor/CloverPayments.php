@@ -139,10 +139,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                 }
             }
             $alignedData = $this->prepareDataToSave($response);
-
-            if (!$data['saved-card-select']) {
-                $this->saveFilteredData($alignedData);
-            }
+            $this->saveFilteredData($alignedData);
 
             if ($data['is-save-card'] && !$data['saved-card-select']) {
                 $this->transaction->saveCard(
@@ -156,7 +153,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                 $transaction->getXpcData()->setUseForRecharges('Y');
             }
 
-            if ($data['is-save-card'] && $data['pro-membership']) {
+            if ($data['is-save-card'] && $data['pro-membership'] || $data['saved-card-select'] && $data['pro-membership']) {
                 $this->transaction->getOrder()->initSubscriptions();
                 $this->setSubscriptionCard($data['saved-card-select']);
             }
@@ -281,7 +278,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
         return $setupStatus;
     }
 
-    protected function setSubscriptionCard($transaction_id)
+    protected function setSubscriptionCard($transaction_id = null)
     {
         $transaction = $this->transaction;
         $card = null;

@@ -5,7 +5,9 @@ namespace Iidev\CloverPayments\Controller\Customer;
 use \XLite\Core\Request;
 use \XLite\Core\TopMessage;
 use XLite\Core\Database;
+use Qualiteam\SkinActXPaymentsConnector\Model\Payment\XpcTransactionData;
 use Iidev\CloverPayments\Model\Payment\Processor\CloverPayments;
+use Qualiteam\SkinActXPaymentsSubscriptions\Model\Subscription;
 
 class PaymentCards extends \XLite\Controller\Customer\ACustomer
 {
@@ -17,6 +19,40 @@ class PaymentCards extends \XLite\Controller\Customer\ACustomer
     public function getCards()
     {
         return $this->getProfile()->getSavedCards();
+    }
+
+    /**
+     * Check if it is Subscription card
+     *
+     * @return boolean
+     */
+    public function isSubscriptionCard($id)
+    {
+        $result = Database::getRepo(Subscription::class)->findOneBy([
+            'card' => $id,
+        ]);
+
+        return $result ? true : false;
+    }
+
+    /**
+     * Remove saved card
+     *
+     * @return void
+     */
+    protected function doActionRemove()
+    {
+        $cardId = Request::getInstance()->card_id;
+
+        if ($cardId) {
+            Database::getRepo(XpcTransactionData::class)->deleteById($cardId);
+
+            TopMessage::addInfo('Saved card has been deleted');
+        } else {
+            TopMessage::addError('Failed to delete saved card');
+        }
+
+        $this->reloadPage();
     }
     public function isSaveCardsAllowed()
     {

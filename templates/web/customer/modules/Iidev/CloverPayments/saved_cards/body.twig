@@ -13,7 +13,7 @@
 		<div class="add-new-card-button">
 			{{ widget('\\Iidev\\CloverPayments\\View\\Button\\AddNewCard', label=t('Add new card'), style='main-button', profileId=this.get('profile_id'), amount=1) }}
 		</div>
-	{% elseif this.isSaveCardsLimitReached() %}
+	{% else %}
 		{{ t('You\'ve reached the maximal amount of saved cards. If you want to add a new card, please remove the unused cards.') }}
   {% endif %}
 

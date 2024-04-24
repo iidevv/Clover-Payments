@@ -20,6 +20,7 @@ use XLite\Model\Order;
 use Iidev\CloverPayments\Core\APIException;
 use Iidev\CloverPayments\Core\CloverPaymentsAPI;
 use Qualiteam\SkinActXPaymentsConnector\Model\Payment\XpcTransactionData;
+use XLite\Model\Order\Status\Payment;
 
 /**
  * CloverPayments processor
@@ -195,15 +196,29 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
      */
     public function doCardSetup($paymentMethod, \XLite\Model\Profile $profile, \XLite\Model\Address $address)
     {
+
+        $setupStatus = '';
+
+        /** @var \XLite\Model\Currency $currency */
+        $currency = Database::getRepo('XLite\Model\Currency')->findOneBy([
+            'code' => 'USD'
+        ]);
+
         $order = new Order();
         $order->setOrderNumber(Database::getRepo(Order::class)->findNextOrderNumber());
         $order->setProfile($profile);
-        $order->setAdminNotes('Card setup order.');
+        $order->setOrigProfile($profile);
+        $order->setNotes('Card setup order.');
+        $order->setCurrency($currency);
+        $order->setTotal(1);
+        $order->setPaymentStatus(Payment::STATUS_PAID);
+
         $order->create();
 
         $this->transaction = new Transaction();
 
         $this->transaction->setPaymentMethod($paymentMethod);
+        $this->transaction->setCurrency($currency);
         $this->transaction->setValue(1);
         $this->transaction->setOrder($order);
 
@@ -241,22 +256,31 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                 Database::getEM()->flush();
 
                 sleep(5);
-                $api->refund(
+                $isRefunded = $api->refund(
                     $alignedData['transaction-id'],
                     null
                 );
 
+                if ($isRefunded) {
+                    $order->setPaymentStatus(Payment::STATUS_REFUNDED);
+                    $order->update();
+                }
+                $setupStatus = 'Card added successfully.';
+            } else {
+                $setupStatus = 'Please try another card.';
             }
         } catch (\Exception $e) {
+
+            $setupStatus = 'Please try another card.';
+
             $this->getLogger('CloverPayments processCardSetup')->error(__FUNCTION__, [
                 'request' => Request::getInstance()->getData(),
                 'exceptionMessage' => $e->getMessage(),
             ]);
         }
-
-        return $response;
+        return $setupStatus;
     }
-    
+
     protected function setSubscriptionCard($transaction_id)
     {
         $transaction = $this->transaction;

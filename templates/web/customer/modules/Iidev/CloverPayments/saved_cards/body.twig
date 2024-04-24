@@ -7,14 +7,10 @@
 
 		{% include 'modules/Iidev/CloverPayments/saved_cards/cards.table.twig' %}
 
-	{% else %}
-
-		{% include 'modules/Iidev/CloverPayments/saved_cards/cards.empty.twig' %}
-
 	{% endif %}
 
 	{% if this.isSaveCardsAllowed() %}
-		<div class="add-new-card-button{% if not this.getCards() %} text-center{% endif %}">
+		<div class="add-new-card-button">
 			{{ widget('\\Iidev\\CloverPayments\\View\\Button\\AddNewCard', label=t('Add new card'), style='main-button', profileId=this.get('profile_id'), amount=1) }}
 		</div>
 	{% elseif this.isSaveCardsLimitReached() %}

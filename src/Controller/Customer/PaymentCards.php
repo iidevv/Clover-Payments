@@ -61,10 +61,12 @@ class PaymentCards extends \XLite\Controller\Customer\ACustomer
             $address
             && $address->getProfile()->getProfileId() === $this->getProfile()->getProfileId()
         ) {
-            $processor->doCardSetup($paymentMethod, $profile, $address);
+            $status = $processor->doCardSetup($paymentMethod, $profile, $address);
+            TopMessage::addInfo($status);
         } else {
             TopMessage::addError('Invalid profile address!');
         }
+
 
         $this->reloadPage(null);
     }

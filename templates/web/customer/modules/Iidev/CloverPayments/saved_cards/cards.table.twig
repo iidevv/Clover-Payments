@@ -14,7 +14,7 @@
 						{{ widget('\\XLite\\View\\Button\\ConfirmRegular', confirmText=t('Are you sure you want to delete this card?'), label=t('Delete'), title=t('Delete card'), style='delete-card', action='remove', formParams={'card_id': card.card_id} ) }}
 					</td>
 				{% else %}
-					<td>
+					<td class="info-column">
 						{{ t('This credit card is used for a subscription. To remove it, you need to cancel the subscription first.') }}
 					</td>
 				{% endif %}

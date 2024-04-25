@@ -4,15 +4,10 @@
  #}
 <div id={{ this.get('card').card_id }}>
 	<span class="card-icon-container">
-      <span class="xpayments-card-type {{ this.get('card').card_type }}">
-        <img src="{{ asset('images/spacer.gif') }}" alt="{{ this.get('card').card_type }}" />
+      <span class="xpc-card-type {{ this.get('card').card_type_css }}">
+        <img class="xpayments-card-type {{ this.get('card').card_type_css }}" src="{{ asset('images/spacer.gif') }}" alt="{{ this.get('card').card_type }}" />
       </span>
     </span>
-
-	{% if this.get('card').card_type %}
-		{{ this.get('card').card_type }}
-		|
-	{% endif %}
 	{% if this.get('card').card_number %}
 		{{ this.get('card').card_number }}
 		|

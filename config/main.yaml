@@ -1,10 +1,15 @@
 version: 5.5.0.4
 type: payment
-authorName: 'Ilya I'
-moduleName: 'CloverPayments'
-description: 'Clover integration'
-minorRequiredCoreVersion: 0 
-dependsOn: {  }
-incompatibleWith: {  }
+authorName: "Ilya I"
+moduleName: "CloverPayments"
+description: "This module enables the processing of one-time payments and the management of recurring payment subscriptions."
+minorRequiredCoreVersion: 0
+dependsOn:
+  - QSL-MembershipProducts
+  - Qualiteam-SkinActSkin
+  - Qualiteam-SkinActXPaymentsConnector
+  - Qualiteam-SkinActXPaymentsSubscriptions
+  - XPay-XPaymentsCloud
+incompatibleWith: {}
 showSettingsForm: true
 canDisable: true

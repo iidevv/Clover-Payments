@@ -6,7 +6,7 @@
 		<strong class="important-label">{{ t('Important!') }}</strong>
 		{{ t('We will authorize') }}
 		{% if this.getAmount() %}
-			<strong>{{ widget('XLite\\View\\Surcharge', surcharge=this.getAmount()) }}</strong>
+			<strong>$1.00</strong>
 		{% else %}
 			{{ t('a small amount') }}
 		{% endif %}
@@ -15,27 +15,29 @@
 	</div>
 
 	{% form '\\Iidev\\CloverPayments\\View\\Form\\CardSetup' %}
+		{% if this.getAmount() == 2 %}
+			<input type="hidden" name="membership_setup" value="1">
+		{% endif %}
+			<div class="card-setup-address">
+				<h4>{{ t('Billing address') }}</h4>
+				{{ widget('\\XLite\\View\\FormField\\Select\\Regular', fieldName='addressId', fieldId='addressId', value=this.getAddressId(), options=this.getAddressList()) }}
+			</div>
 
-		<div class="card-setup-address">
-			<h4>{{ t('Billing address') }}</h4>
-			{{ widget('\\XLite\\View\\FormField\\Select\\Regular', fieldName='addressId', fieldId='addressId', value=this.getAddressId(), options=this.getAddressList()) }}
+			{% include 'modules/Iidev/CloverPayments/account/card_setup.widget.twig' %}
+
+			{{ widget('XLite\\View\\Button\\Submit', label=t('Save card'), style='submit-card', id='save_card') }}
+
+		{% endform %}
+
+	{% else %}
+
+		{{ t('To add a new card you need to have at least one billing address defined for your profile.') }}<br>
+		{{ t('You can enter it on the') }}
+		<a href="{{ this.getShopURL(this.buildUrl('address_book')) }}">{{ t('Address book') }}</a>
+		{{ t('page.') }}
+
+		<div class="address-book-button">
+			{{ widget('\\XLite\\View\\Button\\Link', label='Open Address book', location=this.buildURL('address_book')) }}
 		</div>
 
-		{% include 'modules/Iidev/CloverPayments/account/card_setup.widget.twig' %}
-
-		{{ widget('XLite\\View\\Button\\Submit', label=t('Save card'), style='submit-card', id='save_card') }}
-
-	{% endform %}
-
-{% else %}
-
-	{{ t('To add a new card you need to have at least one billing address defined for your profile.') }}<br>
-	{{ t('You can enter it on the') }}
-	<a href="{{ this.getShopURL(this.buildUrl('address_book')) }}">{{ t('Address book') }}</a>
-	{{ t('page.') }}
-
-	<div class="address-book-button">
-		{{ widget('\\XLite\\View\\Button\\Link', label='Open Address book', location=this.buildURL('address_book')) }}
-	</div>
-
-{% endif %}
+	{% endif %}

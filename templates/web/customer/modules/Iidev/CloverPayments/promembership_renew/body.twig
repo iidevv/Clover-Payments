@@ -1,0 +1,44 @@
+<style>
+	.renew-title {
+		font-size: 4rem;
+		margin-bottom: 1rem;
+	}
+	.renew-block {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		grid-gap: 4rem;
+	}
+	.renew-image {
+		width: 100%;
+	}
+	p {
+		padding: 1rem 0;
+	}
+	.renew-submit {
+		margin: 30px 0;
+		font-size: 1.8rem;
+	}
+	@media(max-width: 767px) {
+		.renew-image {
+			display: none;
+		}
+		.renew-title {
+			font-size: 2rem;
+		}
+		.renew-block {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
+<div class="renew-block">
+	<img class="renew-image" src="/images/product/P/pro-membership-icon.jpg" alt="pro-membership">
+	<div class="renew-info">
+		<h1 class="renew-title">Renew Your Pro Membership</h1>
+		<p>Welcome to our new platform! To continue enjoying all the features of Pro Membership, please update your payment details.</p>
+		<p>Simply add your credit card information to reactivate your subscription and maintain uninterrupted access to our premium services.</p>
+		<p>Act now to ensure you keep benefiting from all our exclusive offerings!</p>
+		<div class="renew-submit">
+			{{ widget('\\Iidev\\CloverPayments\\View\\Button\\AddNewCard', label=t('Activate'), style='regular-main-button', profileId=this.get('profile_id'), amount=2) }}
+		</div>
+	</div>
+</div>

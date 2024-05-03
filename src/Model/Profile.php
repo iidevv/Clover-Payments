@@ -47,4 +47,54 @@ class Profile extends \XLite\Model\Profile
 
         return !empty($valid);
     }
+
+    public function isMembershipMigrationProfile()
+    {
+
+        $isMembershipMigrationProfile = false;
+
+        $login = $this->getLogin();
+
+        /** @var \Iidev\CloverPayments\Model\MembershipMigrate $preProfile */
+        $preProfile = Database::getRepo('Iidev\CloverPayments\Model\MembershipMigrate')->findOneBy([
+            'login' => $login
+        ]);
+
+        if ($preProfile && $preProfile->getPaidMembershipId() === 9 && $preProfile->getStatus() === '') {
+            $isMembershipMigrationProfile = true;
+        }
+
+        return $isMembershipMigrationProfile;
+    }
+    public function setMembershipMigrationProfileComplete()
+    {
+        if ($this->isMembershipMigrationProfile())
+            return null;
+
+        $login = $this->getLogin();
+
+        /** @var \Iidev\CloverPayments\Model\MembershipMigrate $preProfile */
+        $preProfile = Database::getRepo('Iidev\CloverPayments\Model\MembershipMigrate')->findOneBy([
+            'login' => $login
+        ]);
+
+        $preProfile->setStatus("MIGRATION_COMPLETE");
+
+        return true;
+    }
+
+    public function getMembershipMigrationProfileExpirationDate()
+    {
+        if ($this->isMembershipMigrationProfile())
+            return null;
+
+        $login = $this->getLogin();
+
+        /** @var \Iidev\CloverPayments\Model\MembershipMigrate $preProfile */
+        $preProfile = Database::getRepo('Iidev\CloverPayments\Model\MembershipMigrate')->findOneBy([
+            'login' => $login
+        ]);
+
+        return $preProfile->getPaidMembershipExpire();
+    }
 }

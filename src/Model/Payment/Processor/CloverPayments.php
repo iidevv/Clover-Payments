@@ -9,6 +9,7 @@ namespace Iidev\CloverPayments\Model\Payment\Processor;
 
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManager;
+use XC\MigrationWizard\Model\Repo\Membership;
 use XLite\Core\Cache\ExecuteCachedTrait;
 use XLite\Core\Database;
 use XLite\Core\Request;
@@ -21,6 +22,12 @@ use Iidev\CloverPayments\Core\APIException;
 use Iidev\CloverPayments\Core\CloverPaymentsAPI;
 use Qualiteam\SkinActXPaymentsConnector\Model\Payment\XpcTransactionData;
 use XLite\Model\Order\Status\Payment;
+
+use XLite\Model\OrderItem;
+use Qualiteam\SkinActXPaymentsSubscriptions\Model\Base;
+use Qualiteam\SkinActXPaymentsSubscriptions\Model\Subscription;
+use Qualiteam\SkinActXPaymentsSubscriptions\Model\SubscriptionHistoryEvent;
+use Qualiteam\SkinActXPaymentsSubscriptions\Core\Converter;
 
 /**
  * CloverPayments processor
@@ -194,7 +201,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     public function doCardSetup($paymentMethod, \XLite\Model\Profile $profile, \XLite\Model\Address $address)
     {
 
-        $setupStatus = '';
+        $setupStatus = 0;
 
         /** @var \XLite\Model\Currency $currency */
         $currency = Database::getRepo('XLite\Model\Currency')->findOneBy([
@@ -262,13 +269,16 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                     $order->setPaymentStatus(Payment::STATUS_REFUNDED);
                     $order->update();
                 }
-                $setupStatus = 'Card added successfully.';
+                $setupStatus = 1;
             } else {
-                $setupStatus = 'Please try another card.';
+                $order->setPaymentStatus(Payment::STATUS_DECLINED);
+                $order->update();
+
+                $setupStatus = 0;
             }
         } catch (\Exception $e) {
 
-            $setupStatus = 'Please try another card.';
+            $setupStatus = 0;
 
             $this->getLogger('CloverPayments processCardSetup')->error(__FUNCTION__, [
                 'request' => Request::getInstance()->getData(),
@@ -276,6 +286,159 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
             ]);
         }
         return $setupStatus;
+    }
+
+    public function doCardSetupWithPromembership($paymentMethod, \XLite\Model\Profile $profile, \XLite\Model\Address $address)
+    {
+        $setupStatus = 0;
+
+        /** @var \XLite\Model\Currency $currency */
+        $currency = Database::getRepo('XLite\Model\Currency')->findOneBy([
+            'code' => 'USD'
+        ]);
+
+        $order = new Order();
+
+        /** @var  \XLite\Model\Product $product */
+        $product = Database::getRepo('XLite\Model\Product')->findOneBy([
+            'sku' => 'PAIDMEMBERSHIP'
+        ]);
+
+        $item = new OrderItem();
+        $item->setProduct($product);
+
+        $order->setOrderNumber(Database::getRepo(Order::class)->findNextOrderNumber());
+        $order->setProfile($profile);
+        $order->setOrigProfile($profile);
+        $order->setNotes('Card setup order.');
+        $order->setCurrency($currency);
+        $order->setTotal(1);
+        $order->setPaymentStatus(Payment::STATUS_PAID);
+        $order->addItem($item);
+
+        $item->setOrder($order);
+        $order->create();
+
+        $this->transaction = new Transaction();
+
+        $this->transaction->setPaymentMethod($paymentMethod);
+        $this->transaction->setCurrency($currency);
+        $this->transaction->setValue(1);
+        $this->transaction->setOrder($order);
+
+        $transaction = $this->transaction;
+        $backendTransaction = $transaction->createBackendTransaction(
+            BackendTransaction::TRAN_TYPE_SALE
+        );
+        $backendTransaction->setValue($transaction->getValue());
+        $backendTransaction->setStatus(BackendTransaction::STATUS_SUCCESS);
+
+        try {
+            $api = $this->getAPI();
+            $data = $this->getInitialCardSetupData($profile, $address);
+
+            $response = $api->cardTransactionAuthCapture($data);
+
+            if ($response['status'] === 'succeeded') {
+                $alignedData = $this->prepareDataToSave($response);
+                $this->saveFilteredData($alignedData);
+
+                $this->transaction->setPublicTxnId($alignedData['transaction-id']);
+
+                $this->transaction->saveCard(
+                    $alignedData['source_first6'],
+                    $alignedData['source_last4'],
+                    $alignedData['source_brand'],
+                    $alignedData['source_exp_month'],
+                    $alignedData['source_exp_year']
+                );
+
+                $transaction->getXpcData()->setBillingAddress($data['billing-address']);
+                $transaction->getXpcData()->setUseForRecharges('Y');
+
+                Database::getEM()->persist($transaction);
+                // Database::getEM()->flush();
+
+                $expirationData = $profile->getMembershipMigrationProfileExpirationDate();
+
+                $this->createSubscription($item, $address, $expirationData);
+
+                /** @var \XLite\Model\Membership $membership */
+                $membership = Database::getRepo(\XLite\Model\Membership::class)
+                    ->find(11);
+
+                $profile->setMembership($membership);
+                $profile->setMembershipMigrationProfileComplete();
+
+                Database::getEM()->persist($profile);
+                Database::getEM()->flush();
+
+                sleep(5);
+
+                $isRefunded = $api->refund(
+                    $alignedData['transaction-id'],
+                    null
+                );
+
+                if ($isRefunded) {
+                    $order->setPaymentStatus(Payment::STATUS_REFUNDED);
+                    $order->update();
+                }
+                $setupStatus = 1;
+            } else {
+                $order->setPaymentStatus(Payment::STATUS_DECLINED);
+                $order->update();
+
+                $setupStatus = 0;
+            }
+        } catch (\Exception $e) {
+
+            $setupStatus = 0;
+
+            $this->getLogger('CloverPayments processCardSetup')->error(__FUNCTION__, [
+                'request' => Request::getInstance()->getData(),
+                'exceptionMessage' => $e->getMessage(),
+            ]);
+        }
+        return $setupStatus;
+    }
+
+    /**
+     * @return void
+     */
+    public function createSubscription(OrderItem $item, \XLite\Model\Address $address, $startDate)
+    {
+        $subscription = new Subscription();
+
+        $subscription->setType("D");
+        $subscription->setNumber(1);
+        $subscription->setPeriod("Y");
+        $subscription->setReverse(0);
+        $subscription->setInitialOrderItem($item);
+        $subscription->setPeriods(0);
+        $subscription->setCalculateShipping(1);
+        $subscription->setXpcData($this->transaction->getXpcData());
+        $subscription->setShippingAddress($address);
+        $subscription->setStartDate($startDate);
+        $subscription->setPlannedDate($startDate);
+        $subscription->setRealDate(Converter::now());
+        $subscription->setFee(99.00);
+        $subscription->setSuccessTries(1);
+        $subscription->setStartDate(Converter::now());
+        $nextDate = $subscription->getNextDate(Converter::now());
+
+        $subscription->setPlannedDate($nextDate);
+        $subscription->setRealDate($nextDate);
+
+        $subscription->setStatus(
+            Base\ASubscriptionPlan::STATUS_ACTIVE
+        );
+
+        $subscription->registerEvent(
+            SubscriptionHistoryEvent::STATUS_SUCCESS
+        );
+        Database::getEM()->persist($subscription);
+        Database::getEM()->flush();
     }
 
     protected function setSubscriptionCard($transaction_id = null)

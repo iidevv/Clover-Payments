@@ -160,11 +160,6 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                 $transaction->getXpcData()->setUseForRecharges('Y');
             }
 
-            if ($data['is-save-card'] && $data['pro-membership'] || $data['saved-card-select'] && $data['pro-membership']) {
-                $this->transaction->getOrder()->initSubscriptions();
-                $this->setSubscriptionCard($data['saved-card-select']);
-            }
-
         } catch (APIException $e) {
             $this->transaction->setNote($e->getMessage());
             $this->transaction->setDataCell('status', $e->getMessage());
@@ -260,121 +255,6 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                 Database::getEM()->flush();
 
                 sleep(5);
-                $isRefunded = $api->refund(
-                    $alignedData['transaction-id'],
-                    null
-                );
-
-                if ($isRefunded) {
-                    $order->setPaymentStatus(Payment::STATUS_REFUNDED);
-                    $order->update();
-                }
-                $setupStatus = 1;
-            } else {
-                $order->setPaymentStatus(Payment::STATUS_DECLINED);
-                $order->update();
-
-                $setupStatus = 0;
-            }
-        } catch (\Exception $e) {
-
-            $setupStatus = 0;
-
-            $this->getLogger('CloverPayments processCardSetup')->error(__FUNCTION__, [
-                'request' => Request::getInstance()->getData(),
-                'exceptionMessage' => $e->getMessage(),
-            ]);
-        }
-        return $setupStatus;
-    }
-
-    public function doCardSetupWithPromembership($paymentMethod, \XLite\Model\Profile $profile, \XLite\Model\Address $address)
-    {
-        $setupStatus = 0;
-
-        /** @var \XLite\Model\Currency $currency */
-        $currency = Database::getRepo('XLite\Model\Currency')->findOneBy([
-            'code' => 'USD'
-        ]);
-
-        $order = new Order();
-
-        /** @var  \XLite\Model\Product $product */
-        $product = Database::getRepo('XLite\Model\Product')->findOneBy([
-            'sku' => 'PAIDMEMBERSHIP'
-        ]);
-
-        $item = new OrderItem();
-        $item->setProduct($product);
-
-        $order->setOrderNumber(Database::getRepo(Order::class)->findNextOrderNumber());
-        $order->setProfile($profile);
-        $order->setOrigProfile($profile);
-        $order->setNotes('Card setup order.');
-        $order->setCurrency($currency);
-        $order->setTotal(1);
-        $order->setPaymentStatus(Payment::STATUS_PAID);
-        $order->addItem($item);
-
-        $item->setOrder($order);
-        $order->create();
-
-        $this->transaction = new Transaction();
-
-        $this->transaction->setPaymentMethod($paymentMethod);
-        $this->transaction->setCurrency($currency);
-        $this->transaction->setValue(1);
-        $this->transaction->setOrder($order);
-
-        $transaction = $this->transaction;
-        $backendTransaction = $transaction->createBackendTransaction(
-            BackendTransaction::TRAN_TYPE_SALE
-        );
-        $backendTransaction->setValue($transaction->getValue());
-        $backendTransaction->setStatus(BackendTransaction::STATUS_SUCCESS);
-
-        try {
-            $api = $this->getAPI();
-            $data = $this->getInitialCardSetupData($profile, $address);
-
-            $response = $api->cardTransactionAuthCapture($data);
-
-            if ($response['status'] === 'succeeded') {
-                $alignedData = $this->prepareDataToSave($response);
-                $this->saveFilteredData($alignedData);
-
-                $this->transaction->setPublicTxnId($alignedData['transaction-id']);
-
-                $this->transaction->saveCard(
-                    $alignedData['source_first6'],
-                    $alignedData['source_last4'],
-                    $alignedData['source_brand'],
-                    $alignedData['source_exp_month'],
-                    $alignedData['source_exp_year']
-                );
-
-                $transaction->getXpcData()->setBillingAddress($data['billing-address']);
-                $transaction->getXpcData()->setUseForRecharges('Y');
-
-                Database::getEM()->persist($transaction);
-                // Database::getEM()->flush();
-
-                $expirationData = $profile->getMembershipMigrationProfileExpirationDate();
-
-                $this->createSubscription($item, $address, $expirationData);
-
-                /** @var \XLite\Model\Membership $membership */
-                $membership = Database::getRepo(\XLite\Model\Membership::class)
-                    ->find(11);
-
-                $profile->setMembership($membership);
-                $profile->setMembershipMigrationProfileComplete();
-
-                Database::getEM()->persist($profile);
-                Database::getEM()->flush();
-
-                sleep(5);
-
                 $isRefunded = $api->refund(
                     $alignedData['transaction-id'],
                     null
@@ -551,16 +431,6 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     }
 
     /**
-     * @return string
-     */
-    protected function isProMembership()
-    {
-        $request = \XLite\Core\Request::getInstance();
-
-        return $request->pro_membership;
-    }
-
-    /**
      * @return array
      */
     protected function getInitialPaymentData()
@@ -590,7 +460,6 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
             'source' => $this->getSource(),
             'saved-card-select' => $this->getSavedCard(),
             'is-save-card' => true,
-            'pro-membership' => $this->isProMembership(),
             'amount' => $amount,
             'currency' => $currency->getCode(),
             'card-holder-info' => array_filter($cardHolderInfo),
@@ -630,7 +499,6 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
             'source' => $this->getSource(),
             'saved-card-select' => null,
             'is-save-card' => $this->isSaveCard(),
-            'pro-membership' => $this->isProMembership(),
             'amount' => 1,
             'currency' => 'USD',
             'card-holder-info' => array_filter($cardHolderInfo),

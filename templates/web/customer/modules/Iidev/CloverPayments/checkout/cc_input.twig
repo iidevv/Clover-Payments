@@ -40,10 +40,7 @@
 				<div id="card-postal-code" class="field third-width"></div>
 				<div class="input-errors" id="card-postal-code-errors" role="alert"></div>
 			</div>
-			{% if this.isProMembershipOrder() %}
-				<input type="hidden" id="save-card" name="save_card" value="true">
-				<input type="hidden" id="pro-membership" name="pro_membership" value="true">
-			{% elseif this.isAddCardMode() %}
+			{% if this.isAddCardMode() %}
 				<input type="hidden" id="save-card" name="save_card" value="true">
 			{% else %}
 				<div class="form-row">

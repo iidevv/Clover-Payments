@@ -27,16 +27,7 @@ abstract class Account extends \XLite\View\Tabs\Account implements \XLite\Base\I
     {
         $list = parent::getAllowedTargets();
         $list[] = 'payment_cards';
-
         
-        $auth = \XLite\Core\Auth::getInstance();
-        $user = $auth->getProfile();
-
-        // Check if the user has a specific condition
-        if ($user && $user->isMembershipMigrationProfile()) {
-            $list[] = 'promembership_renew';
-
-        }
         return $list;
     }
 
@@ -58,14 +49,6 @@ abstract class Account extends \XLite\View\Tabs\Account implements \XLite\Base\I
                 'template' => 'modules/Iidev/CloverPayments/saved_cards/body.twig',
             );
 
-        }
-
-        if ($this->getProfile() && $this->getProfile()->isMembershipMigrationProfile()) {
-            $tabs['promembership_renew'] = array(
-                'weight' => 1200,
-                'title' => static::t('Renew Pro membership'),
-                'template' => 'modules/Iidev/CloverPayments/promembership_renew/body.twig',
-            );
         }
 
         return $tabs;

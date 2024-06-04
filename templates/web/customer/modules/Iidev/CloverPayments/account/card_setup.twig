@@ -15,9 +15,6 @@
 	</div>
 
 	{% form '\\Iidev\\CloverPayments\\View\\Form\\CardSetup' %}
-		{% if this.getAmount() == 2 %}
-			<input type="hidden" name="membership_setup" value="1">
-		{% endif %}
 			<div class="card-setup-address">
 				<h4>{{ t('Billing address') }}</h4>
 				{{ widget('\\XLite\\View\\FormField\\Select\\Regular', fieldName='addressId', fieldId='addressId', value=this.getAddressId(), options=this.getAddressList()) }}

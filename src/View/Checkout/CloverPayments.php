@@ -119,16 +119,6 @@ class CloverPayments extends \XLite\View\AView
         return $this->mode === 'add_card';
     }
 
-
-    protected function isProMembershipOrder()
-    {
-        if ($cart = $this->getCurrentCartIfAvailable()) {
-            return \XLite\Model\Order::isProMembershipInCart($cart->getItems());
-        }
-
-        return false;
-    }
-
     protected function getSavedCards()
     {
         return \XLite\Core\Auth::getInstance()->getProfile()->getSavedCards();

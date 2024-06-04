@@ -97,12 +97,7 @@ class PaymentCards extends \XLite\Controller\Customer\ACustomer
             $address
             && $address->getProfile()->getProfileId() === $this->getProfile()->getProfileId()
         ) {
-            // temporary doCardSetupWithPromembership
-            if (Request::getInstance()->membership_setup) {
-                $status = $processor->doCardSetupWithPromembership($paymentMethod, $profile, $address);
-            } else {
-                $status = $processor->doCardSetup($paymentMethod, $profile, $address);
-            }
+            $status = $processor->doCardSetup($paymentMethod, $profile, $address);
 
             TopMessage::addInfo($status === 1 ? "Card added successfully." : "Please try another card.");
         } else {

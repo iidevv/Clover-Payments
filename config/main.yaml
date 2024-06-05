@@ -2,14 +2,9 @@ version: 5.5.0.4
 type: payment
 authorName: "Ilya I"
 moduleName: "CloverPayments"
-description: "This module enables the processing of one-time payments and the management of recurring payment subscriptions."
+description: "This module enables the processing of one-time payments."
 minorRequiredCoreVersion: 0
-dependsOn:
-  - QSL-MembershipProducts
-  - Qualiteam-SkinActSkin
-  - Qualiteam-SkinActXPaymentsConnector
-  - Qualiteam-SkinActXPaymentsSubscriptions
-  - XPay-XPaymentsCloud
+dependsOn: {}
 incompatibleWith: {}
 showSettingsForm: true
 canDisable: true

@@ -1,15 +1,9 @@
 <?php
 
-/**
- * Copyright (c) 2011-present Qualiteam software Ltd. All rights reserved.
- * See https://www.x-cart.com/license-agreement.html for license details.
- */
-
 namespace Iidev\CloverPayments\Model\Payment\Processor;
 
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManager;
-use XC\MigrationWizard\Model\Repo\Membership;
 use XLite\Core\Cache\ExecuteCachedTrait;
 use XLite\Core\Database;
 use XLite\Core\Request;
@@ -20,14 +14,7 @@ use XLite\Model\Payment\Transaction;
 use XLite\Model\Order;
 use Iidev\CloverPayments\Core\APIException;
 use Iidev\CloverPayments\Core\CloverPaymentsAPI;
-use Qualiteam\SkinActXPaymentsConnector\Model\Payment\XpcTransactionData;
 use XLite\Model\Order\Status\Payment;
-
-use XLite\Model\OrderItem;
-use Qualiteam\SkinActXPaymentsSubscriptions\Model\Base;
-use Qualiteam\SkinActXPaymentsSubscriptions\Model\Subscription;
-use Qualiteam\SkinActXPaymentsSubscriptions\Model\SubscriptionHistoryEvent;
-use Qualiteam\SkinActXPaymentsSubscriptions\Core\Converter;
 
 /**
  * CloverPayments processor
@@ -156,8 +143,10 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                     $alignedData['source_exp_month'],
                     $alignedData['source_exp_year']
                 );
-                $transaction->getXpcData()->setBillingAddress($data['billing-address']);
-                $transaction->getXpcData()->setUseForRecharges('Y');
+
+
+                $this->transaction->getXpcData()->setBillingAddress($data['billing-address']);
+                $this->transaction->getXpcData()->setUseForRecharges('Y');
             }
 
         } catch (APIException $e) {
@@ -283,68 +272,6 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
         return $setupStatus;
     }
 
-    /**
-     * @return void
-     */
-    public function createSubscription(OrderItem $item, \XLite\Model\Address $address, $startDate)
-    {
-        $subscription = new Subscription();
-
-        $subscription->setType("D");
-        $subscription->setNumber(1);
-        $subscription->setPeriod("Y");
-        $subscription->setReverse(0);
-        $subscription->setInitialOrderItem($item);
-        $subscription->setPeriods(0);
-        $subscription->setCalculateShipping(1);
-        $subscription->setXpcData($this->transaction->getXpcData());
-        $subscription->setShippingAddress($address);
-        $subscription->setStartDate($startDate);
-        $subscription->setPlannedDate($startDate);
-        $subscription->setRealDate(Converter::now());
-        $subscription->setFee(99.00);
-        $subscription->setSuccessTries(1);
-        $subscription->setStartDate(Converter::now());
-        $nextDate = $subscription->getNextDate(Converter::now());
-
-        $subscription->setPlannedDate($nextDate);
-        $subscription->setRealDate($nextDate);
-
-        $subscription->setStatus(
-            Base\ASubscriptionPlan::STATUS_ACTIVE
-        );
-
-        $subscription->registerEvent(
-            SubscriptionHistoryEvent::STATUS_SUCCESS
-        );
-        Database::getEM()->persist($subscription);
-        Database::getEM()->flush();
-    }
-
-    protected function setSubscriptionCard($transaction_id = null)
-    {
-        $transaction = $this->transaction;
-        $card = null;
-
-        if ($transaction_id) {
-            $card = Database::getRepo(XpcTransactionData::class)
-                ->findOneBy([
-                    'transaction' => intval($transaction_id)
-                ]);
-        } else {
-            $card = Database::getRepo(XpcTransactionData::class)
-                ->findOneBy([
-                    'card_number' => $transaction->getXpcData()->getCardNumber(),
-                    'card_type' => $transaction->getXpcData()->getCardType(),
-                    'card_expire' => $transaction->getXpcData()->getCardExpire()
-                ]);
-        }
-
-        if (!$card)
-            return;
-
-        $transaction->getOrder()->setSavedCardForSubscriptions($card);
-    }
     protected function processErrorCode($code, $name = null, $description = null)
     {
         switch ($code) {
@@ -404,7 +331,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
      */
     protected function isSaveCard()
     {
-        $request = \XLite\Core\Request::getInstance();
+        $request = Request::getInstance();
 
         return (bool) $request->save_card;
     }
@@ -414,7 +341,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
      */
     protected function getSource()
     {
-        $request = \XLite\Core\Request::getInstance();
+        $request = Request::getInstance();
 
         return $request->source;
     }
@@ -424,7 +351,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
      */
     protected function getSavedCard()
     {
-        $request = \XLite\Core\Request::getInstance();
+        $request = Request::getInstance();
         $card = $request->saved_card_select ? $request->saved_card_select : null;
 
         return $card;
@@ -466,7 +393,7 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
             'billing-address' => $billingAddress,
             'transaction-fraud-info' => [
                 'shipping-contact-info' => $shippingContactInfo,
-                'shopper-ip-address' => \XLite\Core\Request::getInstance()->getClientIp(),
+                'shopper-ip-address' => Request::getInstance()->getClientIp(),
             ],
         ];
 
@@ -513,8 +440,6 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
     }
 
     /**
-     * http://developers.CloverPayments.com/docs/cvv-response-codes
-     * http://developers.CloverPayments.com/docs/avs-response-codes
      * @param array $data
      *
      * @return array

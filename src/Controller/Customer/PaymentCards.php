@@ -5,9 +5,8 @@ namespace Iidev\CloverPayments\Controller\Customer;
 use \XLite\Core\Request;
 use \XLite\Core\TopMessage;
 use XLite\Core\Database;
-use Qualiteam\SkinActXPaymentsConnector\Model\Payment\XpcTransactionData;
+use Iidev\CloverPayments\Model\Payment\XpcTransactionData;
 use Iidev\CloverPayments\Model\Payment\Processor\CloverPayments;
-use Qualiteam\SkinActXPaymentsSubscriptions\Model\Subscription;
 
 class PaymentCards extends \XLite\Controller\Customer\ACustomer
 {
@@ -19,20 +18,6 @@ class PaymentCards extends \XLite\Controller\Customer\ACustomer
     public function getCards()
     {
         return $this->getProfile()->getSavedCards();
-    }
-
-    /**
-     * Check if it is Subscription card
-     *
-     * @return boolean
-     */
-    public function isSubscriptionCard($id)
-    {
-        $result = Database::getRepo(Subscription::class)->findOneBy([
-            'card' => $id,
-        ]);
-
-        return $result ? true : false;
     }
 
     /**
@@ -56,7 +41,8 @@ class PaymentCards extends \XLite\Controller\Customer\ACustomer
     }
     public function isSaveCardsAllowed()
     {
-        $savedCardsCount = count($this->getProfile()->getSavedCards());
+        $savedCards = $this->getProfile()->getSavedCards();
+        $savedCardsCount = $savedCards ? count($savedCards) : null;
         if ($savedCardsCount >= 5) {
             return false;
         }

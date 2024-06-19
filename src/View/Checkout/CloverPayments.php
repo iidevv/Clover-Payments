@@ -121,7 +121,7 @@ class CloverPayments extends \XLite\View\AView
 
     protected function getSavedCards()
     {
-        return \XLite\Core\Auth::getInstance()->getProfile()->getSavedCards();
+        return \XLite\Core\Auth::getInstance()->getProfile() ? \XLite\Core\Auth::getInstance()->getProfile()->getSavedCards() : null;
     }
 
     /**

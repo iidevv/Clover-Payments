@@ -3,8 +3,6 @@
 
 namespace Iidev\CloverPayments\View;
 
-use \XPay\XPaymentsCloud\View\FormField\Select\CardNumberDisplayFormat;
-
 /**
  * Card block 
  */
@@ -50,7 +48,7 @@ class Card extends \XLite\View\AView
      */
     public function getCardBlockClass()
     {
-        $class = 'xpayments-card';
+        $class = 'clover-card';
 
         if ($this->getParam(self::PARAM_COMPACT)) {
             $class .= ' compact';
@@ -89,7 +87,7 @@ class Card extends \XLite\View\AView
             $card['last4'] = substr($card['cardNumber'], -4);
         }
 
-        if (CardNumberDisplayFormat::FORMAT_UNMASKED == $this->getParam(self::PARAM_CARD_NUMBER_DISPLAY_FORMAT)) {
+        if ($this->getParam(self::PARAM_CARD_NUMBER_DISPLAY_FORMAT)) {
             if (!empty($card['expireMonth']) && !empty($card['expireYear'])) {
                 $card['expire'] = sprintf('%s/%s', $card['expireMonth'], $card['expireYear']);
             } elseif (empty($card['expire'])) {
@@ -145,7 +143,7 @@ class Card extends \XLite\View\AView
             ),
             self::PARAM_CARD_NUMBER_DISPLAY_FORMAT => new \XLite\Model\WidgetParam\TypeString(
                 'Card number display format',
-                \XLite\Core\Config::getInstance()->XPay->XPaymentsCloud->card_number_display_format,
+                'U',
                 false
             ),
         );

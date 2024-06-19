@@ -24,7 +24,7 @@ class AddNewCard extends \XLite\View\Button\APopupButton
     {
         $list = parent::getJSFiles();
 
-        $list[] = 'modules/XPay/XPaymentsCloud/button/add_new_card.js';
+        $list[] = 'modules/Iidev/CloverPayments/button/add_new_card.js';
 
         return $list;
     }

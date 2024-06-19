@@ -3,7 +3,7 @@
 namespace Iidev\CloverPayments\View\Form;
 
 /**
- * X-Payments Saved cards form 
+ * Saved cards form 
  */
 class Cards extends \XLite\View\Form\AForm
 {

@@ -34,7 +34,7 @@ class Transaction extends \XLite\Model\Payment\Transaction
     const NOTE_LIMIT = 255;
 
     /**
-     * X-Payments custom data cells
+     * custom data cells
      *
      * @var XpcDataCell
      *
@@ -43,7 +43,7 @@ class Transaction extends \XLite\Model\Payment\Transaction
     protected $xpc_data_cells;
 
     /**
-     * One-to-one relation with X-Payments transaction details
+     * One-to-one relation with transaction details
      *
      * @var XpcTransactionData
      *
@@ -113,8 +113,6 @@ class Transaction extends \XLite\Model\Payment\Transaction
         $xpcData->setCardType($type);
         
         if ($expireMonth && $expireYear) {
-
-            // If this is changed, correct Model\Payment\Processor\AXPayments::copyMaskedCard() as well
             $xpcData->setCardExpire($expireMonth . '/' . $expireYear);
         }
     }
@@ -196,11 +194,6 @@ class Transaction extends \XLite\Model\Payment\Transaction
             // The 'paid' value is used for backwards compatiblity only.
 
             if ($fields['paid'] < $fields['refunded']) {
-
-                // WA fix for the information returned from X-Payments.
-                // The captured and charged values are calculated in a different way,
-                // refunded amount is substracted from charged but not from captured.
-                // See XPay_Model_Payment::getInfo().
 
                 $fields['paid'] += $fields['refunded'];
             }

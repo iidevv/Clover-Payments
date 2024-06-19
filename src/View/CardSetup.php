@@ -3,9 +3,6 @@
 
 namespace Iidev\CloverPayments\View;
 
-use XPay\XPaymentsCloud\Main as XPaymentsHelper;
-
-
 /**
  * Add New Card widget
  */
@@ -13,7 +10,6 @@ class CardSetup extends \XLite\View\AView
 {
 
     /**
-     * Get JS files with wrappers for SDK
      *
      * @return array
      */
@@ -21,21 +17,16 @@ class CardSetup extends \XLite\View\AView
     {
         $list = parent::getJSFiles();
 
-        $list[] = 'modules/XPay/XPaymentsCloud/account/card_setup.widget.js';
-
         return $list;
     }
 
     /**
-     * Get SDK JS files
      *
      * @return array
      */
     protected function getCommonFiles()
     {
         $list = parent::getCommonFiles();
-
-        $list[static::RESOURCE_JS][] = 'modules/XPay/XPaymentsCloud/lib/js/widget.js';
 
         return $list;
     }
@@ -63,26 +54,6 @@ class CardSetup extends \XLite\View\AView
     protected function getDefaultTemplate()
     {
         return 'modules/Iidev/CloverPayments/account/card_setup.twig';
-    }
-
-    /**
-     * Returns xpaymentsCustomerId for current profile (if available)
-     *
-     * @return string
-     */
-    public function getXpaymentsCustomerId()
-    {
-        return $this->getCustomerProfile()->getXpaymentsCustomerId();
-    }
-
-    /**
-     * Return X-Payments Cloud payment method
-     *
-     * @return \XLite\Model\Payment\Method
-     */
-    public function getPaymentMethod()
-    {
-        return XPaymentsHelper::getPaymentMethod();
     }
 
     /**

@@ -1,11 +1,11 @@
 {##
- # X-Payments card
+ # Card
  #
  #}
 <div id={{ this.get('card').card_id }}>
 	<span class="card-icon-container">
       <span class="xpc-card-type {{ this.get('card').card_type_css }}">
-        <img class="xpayments-card-type {{ this.get('card').card_type_css }}" src="{{ asset('images/spacer.gif') }}" alt="{{ this.get('card').card_type }}" />
+        <img class="clover-card-type {{ this.get('card').card_type_css }}" src="{{ asset('images/spacer.gif') }}" alt="{{ this.get('card').card_type }}" />
       </span>
     </span>
 	{% if this.get('card').card_number %}

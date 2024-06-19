@@ -3,10 +3,9 @@
 namespace Iidev\CloverPayments\View\Tabs;
 
 use XCart\Extender\Mapping\Extender;
-use XPay\XPaymentsCloud\Main as XPaymentsHelper;
 
 /**
- * X-Payments Saved Cards tab
+ * Saved Cards tab
  *
  * @Extender\Mixin
  */
@@ -56,11 +55,6 @@ abstract class Account extends \XLite\View\Tabs\Account implements \XLite\Base\I
     public function getCommonFiles()
     {
         $list = parent::getCommonFiles();
-
-        if (static::isXpaymentsEnabled()) {
-            $list['css'][] = 'modules/XPay/XPaymentsCloud/account/cc_type_sprites.css';
-            $list['css'][] = 'modules/XPay/XPaymentsCloud/account/xpayments_cards.less';
-        }
 
         return $list;
     }

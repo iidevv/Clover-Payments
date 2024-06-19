@@ -188,7 +188,7 @@ class CloverPaymentsAPI
         }
 
         $customerId = null;
-        
+
         if ($data['saved-card-select']) {
 
             $customer = \XLite\Core\Database::getRepo(\XLite\Model\Payment\TransactionData::class)
@@ -301,7 +301,7 @@ class CloverPaymentsAPI
         $request->setHeader('authorization', sprintf('Bearer %s', $this->config['password']));
         $request->setHeader('Content-Type', 'application/json');
 
-        if (!empty ($headers)) {
+        if (!empty($headers)) {
             foreach ($headers as $key => $value) {
                 $request->setHeader($key, $value);
             }
@@ -327,6 +327,17 @@ class CloverPaymentsAPI
         ]);
 
         if (!$response || !in_array((int) $response->code, [200, 201, 204], true)) {
+
+            $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Response', [
+                $method,
+                $url,
+                $request->headers,
+                $request->body,
+                $response ? $response->headers : 'empty',
+                $response ? $response->body : 'empty',
+                $request->getErrorMessage(),
+            ]);
+
             if (!$response || in_array((int) $response->code, [403, 500], true)) {
                 throw new APIException(Translation::lbl('Unfortunately, an error occurred and your order could not be placed at this time. Please try again, or contact our support team.'));
             } elseif ($response->body) {
@@ -336,7 +347,6 @@ class CloverPaymentsAPI
                     throw new APIException($message);
                 }
             }
-
             throw new APIException($request->getErrorMessage(), $response->code);
         }
 
@@ -353,13 +363,13 @@ class CloverPaymentsAPI
         $result = [];
         try {
             $data = json_decode($json, true);
-            if (isset ($data['error']) && !empty ($data['error'])) {
+            if (isset($data['failure_reason'])) {
                 $result = [
-                    'code' => $data['error']['code'] ?? '',
-                    'message' => $data['error']['message'] ?? '',
-                    'error-name' => $data['error']['declineCode'] ?? '',
+                    'code' => $data['failure_reason'] ?? '',
+                    'message' => $data['description'] ?? '',
+                    'error-name' => $data['failure_reason'] ?? '',
                 ];
-            } else if (isset ($data['message'])) {
+            } else if (isset($data['message'])) {
                 $result = $data['message'];
             }
         } catch (APIException $e) {

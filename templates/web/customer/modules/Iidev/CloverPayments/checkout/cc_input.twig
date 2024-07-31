@@ -10,9 +10,7 @@
 					<option value="">{{ t('Select Payment Methods') }}</option>
 					{% for card in this.getSavedCards() %}
 						<option value="{{ card.transaction_id }}">
-							{{card.card_type}}
-							|
-							{{ card.card_number }}
+							{{card.card_type}} - {{ card.card_number }} ({{card.expire}})
 						</option>
 					{% endfor %}
 				</select>

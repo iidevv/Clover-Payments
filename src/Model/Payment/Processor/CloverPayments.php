@@ -135,21 +135,22 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
             $alignedData = $this->prepareDataToSave($response);
             $this->saveFilteredData($alignedData);
 
-            if (!$data['saved-card-select']) {
+            $this->transaction->saveCard(
+                $alignedData['source_first6'],
+                $alignedData['source_last4'],
+                $alignedData['source_brand'],
+                $alignedData['source_exp_month'],
+                $alignedData['source_exp_year']
+            );
 
-                $this->transaction->saveCard(
-                    $alignedData['source_first6'],
-                    $alignedData['source_last4'],
-                    $alignedData['source_brand'],
-                    $alignedData['source_exp_month'],
-                    $alignedData['source_exp_year']
-                );
+            $isForRecharges = ($data['is-save-card']) ? 'Y' : 'N';
 
-                $isForRecharges = $data['is-save-card'] ? 'Y' : 'N';
-
-                $this->transaction->getXpcData()->setBillingAddress($data['billing-address']);
-                $this->transaction->getXpcData()->setUseForRecharges($isForRecharges);
+            if ($data['saved-card-select']) {
+                $isForRecharges = 'N';
             }
+
+            $this->transaction->getXpcData()->setBillingAddress($data['billing-address']);
+            $this->transaction->getXpcData()->setUseForRecharges($isForRecharges);
 
         } catch (APIException $e) {
             $this->transaction->setNote($e->getMessage());

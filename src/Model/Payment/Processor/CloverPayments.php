@@ -946,6 +946,9 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
         $data = parent::defineSavedData();
         $data['transaction-id'] = 'CloverPayments identifier for the transaction';
         $data['card-token'] = 'Credit card token';
+        $data['card-zip'] = 'Zip code';
+        $data['address-check'] = 'Address check';
+        $data['zip-check'] = 'Zip code check';
 
         return $data;
     }

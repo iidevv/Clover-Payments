@@ -469,6 +469,15 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
         if (isset($result['source_id'])) {
             $result['card-token'] = $result['source_id'];
         }
+        if (isset($result['source_address_line1_check'])) {
+            $result['address-check'] = $result['source_address_line1_check'];
+        }
+        if (isset($result['source_address_zip_check'])) {
+            $result['zip-check'] = $result['source_address_zip_check'];
+        }
+        if (isset($result['source_address_zip'])) {
+            $result['card-zip'] = $result['source_address_zip'];
+        }
 
         return $result;
     }

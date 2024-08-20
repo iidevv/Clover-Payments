@@ -39,13 +39,13 @@ class APIException extends \Exception
         }
 
         if (is_array($message)) {
-            if (isset ($message['message'], $message['code'], $message['error-name'])) {
+            if (isset($message['message'], $message['code'], $message['error-name'])) {
                 $messages[] = $message['message'];
                 $codes[] = $message['code'];
                 $names[] = $message['error-name'];
             } else {
                 foreach ($message as $m) {
-                    if (is_array($m) && isset ($m['message'], $m['code'], $m['error-name'])) {
+                    if (is_array($m) && isset($m['message'], $m['code'], $m['error-name'])) {
                         $messages[] = $m['message'];
                         $codes[] = $m['code'];
                         $names[] = $m['error-name'];

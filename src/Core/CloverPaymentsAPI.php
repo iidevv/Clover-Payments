@@ -150,11 +150,6 @@ class CloverPaymentsAPI
      */
     public function saveCardData(array $data)
     {
-
-        // if (!empty($this->config['soft_descriptor'])) {
-        //     $data['soft-descriptor'] = $this->config['soft_descriptor'];
-        // }
-
         $headers = [
             'x-forwarded-for' => $data['transaction-fraud-info']['shopper-ip-address'],
         ];
@@ -363,11 +358,12 @@ class CloverPaymentsAPI
         $result = [];
         try {
             $data = json_decode($json, true);
-            if (isset($data['failure_reason'])) {
+            $errorData = $data['error'];
+            if (isset($errorData)) {
                 $result = [
-                    'code' => $data['failure_reason'] ?? '',
-                    'message' => $data['description'] ?? '',
-                    'error-name' => $data['failure_reason'] ?? '',
+                    'code' => $errorData['code'] ?? '',
+                    'message' => $errorData['message'] ?? '',
+                    'error-name' => $errorData['type'] ?? '',
                 ];
             } else if (isset($data['message'])) {
                 $result = $data['message'];

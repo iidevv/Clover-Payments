@@ -55,7 +55,7 @@ class Order extends \XLite\Model\Order
     public function isCloverPaymentsOrder()
     {
         $transaction = $this->getPaymentTransactions()->last();
-        if ($transaction->getPaymentMethod()->getProcessor() instanceof CloverPayments) {
+        if ($transaction && $transaction->getPaymentMethod()->getProcessor() instanceof CloverPayments) {
             return true;
         }
         return false;

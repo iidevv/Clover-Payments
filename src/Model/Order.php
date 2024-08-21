@@ -5,6 +5,8 @@ namespace Iidev\CloverPayments\Model;
 use XCart\Extender\Mapping\Extender;
 use XLite\Model\Payment\Transaction;
 use Iidev\CloverPayments\Model\Payment\Processor\CloverPayments;
+use Iidev\CloverPayments\Model\Payment\XpcTransactionData;
+use XLite\Core\Database;
 
 /**
  * @Extender\Mixin
@@ -40,7 +42,7 @@ class Order extends \XLite\Model\Order
                         }
                     }
 
-                    if (isset ($result) && $transaction->getPaymentMethod()->getProcessor() instanceof CloverPayments) {
+                    if (isset($result) && $transaction->getPaymentMethod()->getProcessor() instanceof CloverPayments) {
                         return static::t('Common CloverPayments error message');
                     }
                 }
@@ -49,19 +51,38 @@ class Order extends \XLite\Model\Order
 
         return parent::getFailureReason();
     }
-    /**
-     * Check if the order contains a pro membership item.
-     *
-     * @return bool
-     */
-    public static function isProMembershipInCart($items)
-    {
-        foreach ($items as $item) {
-            if ($item->getSku() === "PAIDMEMBERSHIP") {
-                return true;
-            }
-        }
 
+    public function isCloverPaymentsOrder()
+    {
+        $transaction = $this->getPaymentTransactions()->last();
+        if ($transaction->getPaymentMethod()->getProcessor() instanceof CloverPayments) {
+            return true;
+        }
         return false;
+    }
+
+    /**
+     * Get payment card
+     *
+     * @return array
+     */
+    public function getCloverPaymentsCard()
+    {
+        $transaction = $this->getPaymentTransactions()->last();
+        $transactionData = Database::getRepo(XpcTransactionData::class)->findOneBy([
+            'transaction' => $transaction->getTransactionId()
+        ]);
+
+        if (!$transactionData)
+            return [];
+
+        return [
+            'card_id' => $transactionData->getId(),
+            'card_number' => $transactionData->getCardNumber(),
+            'card_type' => $transactionData->getCardType(),
+            'card_type_css' => strtolower($transactionData->getCardType()),
+            'use_for_recharges' => $transactionData->getUseForRecharges(),
+            'expire' => $transactionData->getCardExpire(),
+        ];
     }
 }

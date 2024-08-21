@@ -21,6 +21,12 @@ table.saved-cards td.remove-column {
   height: 20px;
   vertical-align: top;
   line-height: 20px;
+  margin-right: 5px;
+}
+
+.clover-card {
+  display: flex;
+  align-items: center;
 }
 
 .clover-card-type {

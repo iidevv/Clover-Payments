@@ -2,18 +2,19 @@
  # Card
  #
  #}
-<div id={{ this.get('card').card_id }}>
+<div class="clover-card" id={{ this.get('card').card_id }}>
 	<span class="card-icon-container">
-      <span class="xpc-card-type {{ this.get('card').card_type_css }}">
-        <img class="clover-card-type {{ this.get('card').card_type_css }}" src="{{ asset('images/spacer.gif') }}" alt="{{ this.get('card').card_type }}" />
-      </span>
-    </span>
-	{% if this.get('card').card_number %}
-		{{ this.get('card').card_number }}
-		|
-	{% endif %}
-	{% if this.get('card').expire %}
-		{{ this.get('card').expire }}
-	{% endif %}
-	
+		<span class="xpc-card-type {{ this.get('card').card_type_css }}">
+			<img class="clover-card-type {{ this.get('card').card_type_css }}" src="{{ asset('images/spacer.gif') }}" alt="{{ this.get('card').card_type }}"/>
+		</span>
+	</span>
+	<span class="card-icon-info">
+		{% if this.get('card').card_number %}
+			{{ this.get('card').card_number }}
+			|
+		{% endif %}
+		{% if this.get('card').expire %}
+			{{ this.get('card').expire }}
+		{% endif %}
+	</span>
 </div>

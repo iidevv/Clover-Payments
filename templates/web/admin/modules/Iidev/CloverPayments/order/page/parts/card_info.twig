@@ -4,7 +4,7 @@
 
 {% if this.order.isCloverPaymentsOrder() %}
 	<div style="margin: 15px 0; max-width: 850px;">
-		<div class="placed-date head-h4">{{ t('Credit/Debit Card details') }}</div>
+		<div class="head-h4">{{ t('Credit/Debit Card details') }}</div>
 		{{ widget('\\Iidev\\CloverPayments\\View\\Card', card=this.order.getCloverPaymentsCard()) }}
 	</div>
 {% endif %}

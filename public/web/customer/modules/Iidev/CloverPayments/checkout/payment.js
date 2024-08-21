@@ -271,6 +271,11 @@ CloverPayments.prototype.hostedPaymentEventListeners = function () {
   this.form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
+    if (!jQuery(".payment-form-container").length) {
+      this.form.submit();
+      return;
+    }
+
     if (
       document.getElementById("saved-card") &&
       document.getElementById("saved-card").value

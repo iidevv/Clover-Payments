@@ -1,0 +1,69 @@
+/* vim: set ts=2 sw=2 sts=2 et: */
+
+table.cards th.title-column,
+table.cards td.title-column {
+  border-right: 0px;
+}
+
+table.cards th.info-column,
+table.cards td.info-column {
+  max-width: 120px;
+}
+
+table.saved-cards td.remove-column {
+  max-width: 150px;
+  color: #a9a9a9;
+}
+
+.card-icon-container {
+  display: inline-block;
+  width: 42px;
+  height: 20px;
+  vertical-align: top;
+  line-height: 20px;
+}
+
+.clover-card-type {
+  display: inline-block;
+  font-size: 0;
+  padding: 0;
+  border-radius: 10px;
+  width: 100%;
+  height: 100%;
+  background: url(cc_type_sprites.png) 0 0 no-repeat;
+  background-size: 100% auto !important;
+  -webkit-background-size: 100% auto !important;
+  -o-background-size: 100% auto !important;
+  -moz-background-size: 100% auto !important;
+}
+.clover-card-type img {
+  float: right;
+}
+.clover-card-type.mc {
+  background-position: 0 10%;
+}
+.clover-card-type.visa {
+  background-position: 0 20%;
+}
+.clover-card-type.jcb {
+  background-position: 0 30%;
+}
+.clover-card-type.amex {
+  background-position: 0 40%;
+}
+.clover-card-type.dc,
+.clover-card-type.dicl {
+  background-position: 0 50%;
+}
+.clover-card-type.paypal {
+  background-position: 0 60%;
+}
+.clover-card-type.sw {
+  background-position: 0 70%;
+}
+.clover-card-type.cup {
+  background-position: 0 80%;
+}
+.clover-card-type.bc {
+  background-position: 0 90%;
+}

@@ -323,8 +323,8 @@ class CloverPaymentsAPI
 
         if(\XLite\Core\Config::getInstance()->Iidev->CloverPayments->is_debug) {
             $logData = [
-                "Request" => $request,
-                "Response" => $response
+                "Request" => $request->body,
+                "Response" => $response->body
             ];
             Logger::logMessage($logData);
         }

@@ -4,7 +4,7 @@ namespace Iidev\CloverPayments\Core;
 
 use XLite\Core\Translation;
 use XLite\InjectLoggerTrait;
-
+use Iidev\CloverPayments\Helper\Logger;
 /**
  * CloverPaymentsAPI
  */
@@ -321,6 +321,14 @@ class CloverPaymentsAPI
             $request->getErrorMessage(),
         ]);
 
+        if(\XLite\Core\Config::getInstance()->Iidev->CloverPayments->is_debug) {
+            $logData = [
+                "Request" => $request,
+                "Response" => $response
+            ];
+            Logger::logMessage($logData);
+        }
+
         if (!$response || !in_array((int) $response->code, [200, 201, 204], true)) {
 
             $this->getLogger('CloverPayments')->error(__FUNCTION__ . 'Response', [
@@ -358,12 +366,11 @@ class CloverPaymentsAPI
         $result = [];
         try {
             $data = json_decode($json, true);
-            $errorData = $data['error'];
-            if (isset($errorData)) {
+            if (isset($data['failure_reason'])) {
                 $result = [
-                    'code' => $errorData['code'] ?? '',
-                    'message' => $errorData['message'] ?? '',
-                    'error-name' => $errorData['type'] ?? '',
+                    'code' => $data['failure_reason'] ?? '',
+                    'message' => $data['description'] ?? '',
+                    'error-name' => $data['failure_reason'] ?? '',
                 ];
             } else if (isset($data['message'])) {
                 $result = $data['message'];

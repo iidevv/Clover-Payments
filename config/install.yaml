@@ -1,3 +1,12 @@
+XLite\Model\Config:
+  - name: is_debug
+    category: Iidev\CloverPayments
+    type: XLite\View\FormField\Input\Checkbox\OnOffWithoutOffLabel
+    orderby: 400
+    value: ''
+    translations:
+      - code: en
+        option_name: 'API requests debug mode'
 XLite\Model\Payment\Method:
   - service_name: CloverPayments
     class: Iidev\CloverPayments\Model\Payment\Processor\CloverPayments

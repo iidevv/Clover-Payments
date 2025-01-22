@@ -14,6 +14,8 @@ CloverPayments.prototype.findPattern = ".payment-form-container";
 
 CloverPayments.prototype.blockedByCloverPayments = false;
 
+CloverPayments.prototype.cloverPaymentsToken = null;
+
 CloverPayments.prototype.initialize = function (secondary) {
   let key = document.querySelector("#payment-form")?.dataset?.key || "";
 
@@ -290,9 +292,12 @@ CloverPayments.prototype.hostedPaymentEventListeners = function () {
         message: "Processing. Please wait",
       });
     }
+    
+    if(!this.cloverPaymentsToken) {
+      this.cloverPaymentsToken = await this.createToken();
+    }
 
-    const token = await this.createToken();
-    if (!token) {
+    if (!this.cloverPaymentsToken) {
       xcart.trigger("message", {
         type: "info",
         message: "Error. Please try again!",
@@ -300,7 +305,7 @@ CloverPayments.prototype.hostedPaymentEventListeners = function () {
       location.reload();
       return;
     }
-    this.setToken(token);
+    this.setToken(this.cloverPaymentsToken);
     this.form.submit();
   });
 };

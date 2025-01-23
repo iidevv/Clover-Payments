@@ -16,6 +16,8 @@ CloverPayments.prototype.blockedByCloverPayments = false;
 
 CloverPayments.prototype.cloverPaymentsToken = null;
 
+CloverPayments.prototype.cloverSavedCardToken = null;
+
 CloverPayments.prototype.initialize = function (secondary) {
   let key = document.querySelector("#payment-form")?.dataset?.key || "";
 
@@ -279,18 +281,14 @@ CloverPayments.prototype.hostedPaymentEventListeners = function () {
     }
 
     if (
+      !this.cloverSavedCardToken &&
       document.getElementById("saved-card") &&
       document.getElementById("saved-card").value
     ) {
+      this.cloverSavedCardToken = document.getElementById("saved-card").value;
+      
       this.form.submit();
       return;
-    }
-
-    if (document.querySelector("#save_card")) {
-      xcart.trigger("message", {
-        type: "info",
-        message: "Processing. Please wait",
-      });
     }
     
     if(!this.cloverPaymentsToken) {

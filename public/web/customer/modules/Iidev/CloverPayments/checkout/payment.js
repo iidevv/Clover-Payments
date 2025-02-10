@@ -12,38 +12,45 @@ CloverPayments.prototype.name = "CloverPayments";
 
 CloverPayments.prototype.findPattern = ".payment-form-container";
 
-CloverPayments.prototype.blockedByCloverPayments = false;
+CloverPayments.prototype.isSavedCardSelected = false;
 
-CloverPayments.prototype.cloverPaymentsToken = null;
+CloverPayments.prototype.validationState = {
+  CARD_NUMBER: false,
+  CARD_DATE: false,
+  CARD_CVV: false,
+  CARD_POSTAL_CODE: false,
+};
 
-CloverPayments.prototype.cloverSavedCardToken = null;
-
-CloverPayments.prototype.initialize = function (secondary) {
+CloverPayments.prototype.initialize = function (secondary = false) {
   let key = document.querySelector("#payment-form")?.dataset?.key || "";
 
-  this.base = jQuery(this.findPattern);
+  this.base = document.querySelector(this.findPattern);
 
   this.cloverInstance = new Clover(key);
 
   this.form = document.querySelector("form.place");
-
-  var self = this;
+  
+  this.disableCheckout();
   this.hostedPaymentFieldsCreation();
+  this.hostedPaymentEventListeners();
+
+  const self = this;
 
   xcart.microhandlers.add(
     "CloverPaymentsFields",
     ".payment-form-container",
     function () {
       setTimeout(function () {
-        self.base = jQuery(".payment-form-container");
-        xcart.trigger("checkout.common.anyChange");
+        self.disableCheckout();
         self.hostedPaymentFieldsCreation();
+        self.hostedPaymentEventListeners();
+
+        xcart.trigger("checkout.common.anyChange");
       }, 500);
     }
   );
 
   if (!secondary) {
-    xcart.bind("checkout.common.ready", _.bind(this.handleCheckoutReady, this));
     xcart.bind(
       "checkout.common.anyChange",
       _.bind(this.handleCheckoutAnyChange, this)
@@ -61,11 +68,6 @@ CloverPayments.prototype.initialize = function (secondary) {
       _.bind(this.handleCheckoutAnyChange, this)
     );
 
-    xcart.bind(
-      "checkout.paymentTpl.loaded",
-      _.bind(this.handlePaymentTplLoaded, this)
-    );
-
     this.handleCheckoutAnyChange();
   }
 };
@@ -76,7 +78,9 @@ CloverPayments.prototype.createToken = async function () {
 
     return result.token;
   } catch (error) {
-    console.log(error);
+    console.error("Token creation failed:", error);
+    
+    return null;
   }
 };
 
@@ -90,23 +94,25 @@ CloverPayments.prototype.setToken = function (token) {
   this.form.querySelector(".form-params").appendChild(hiddenInput);
 };
 
-CloverPayments.prototype.handlePaymentTplLoaded = function () {};
-
 CloverPayments.prototype.handleCheckoutAnyChange = function () {
-  if (!jQuery(".payment-form-container").length) {
-    xcart.trigger("common.unshaded");
-    xcart.trigger("checkout.common.unblock");
+  if (!document.querySelector(this.findPattern)) {
+    this.enableCheckout();
   }
 };
 
-CloverPayments.prototype.validationState = {
-  CARD_NUMBER: false,
-  CARD_DATE: false,
-  CARD_CVV: false,
-  CARD_POSTAL_CODE: false,
+CloverPayments.prototype.debounce = function (func, wait) {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
 };
 
 CloverPayments.prototype.isValid = function () {
+  if (this.isSavedCardSelected) {
+    return true;
+  }
+
   const isValid =
     this.validationState.CARD_NUMBER &&
     this.validationState.CARD_DATE &&
@@ -116,12 +122,10 @@ CloverPayments.prototype.isValid = function () {
   const submitCard = document.querySelector("#save_card");
 
   if (isValid) {
-    xcart.trigger("common.unshaded");
-    xcart.trigger("checkout.common.unblock");
+    this.enableCheckout();
     if (submitCard) submitCard.disabled = false;
   } else {
-    xcart.trigger("common.shaded");
-    xcart.trigger("checkout.common.block");
+    this.disableCheckout();
     if (submitCard) submitCard.disabled = true;
   }
 
@@ -129,21 +133,21 @@ CloverPayments.prototype.isValid = function () {
 };
 
 CloverPayments.prototype.validate = function (data) {
-  this.validationState["CARD_NUMBER"] =
-    !data.CARD_NUMBER.error && data.CARD_NUMBER.touched ? true : false;
-  this.validationState["CARD_DATE"] =
-    !data.CARD_DATE.error && data.CARD_DATE.touched ? true : false;
-  this.validationState["CARD_CVV"] =
-    !data.CARD_CVV.error && data.CARD_CVV.touched ? true : false;
-  this.validationState["CARD_POSTAL_CODE"] =
-    !data.CARD_POSTAL_CODE.error && data.CARD_POSTAL_CODE.touched
-      ? true
-      : false;
+  Object.keys(this.validationState).forEach((key) => {
+    this.validationState[key] = !data[key].error && data[key].touched;
+  });
 
   return this.isValid();
 };
 
-CloverPayments.prototype.handleCheckoutReady = async function (event, state) {
+CloverPayments.prototype.enableCheckout = function () {
+  xcart.trigger("common.unshaded");
+  xcart.trigger("checkout.common.unblock");
+};
+
+CloverPayments.prototype.disableCheckout = function () {
+  xcart.trigger("common.shaded");
+  xcart.trigger("checkout.common.block");
 };
 
 CloverPayments.prototype.hostedPaymentFieldsCreation = function () {
@@ -188,124 +192,107 @@ CloverPayments.prototype.hostedPaymentFieldsCreation = function () {
   this.cardDate.mount("#card-date");
   this.cardCvv.mount("#card-cvv");
   this.cardPostalCode.mount("#card-postal-code");
+};
 
-  this.hostedPaymentEventListeners();
+CloverPayments.prototype.handleFormSubmit = async function (e) {
+  e.preventDefault();
 
-  this.isValid();
+  this.disableCheckout();
+
+  if (!document.querySelector(this.findPattern)) {
+    this.form.submit();
+    return;
+  }
+
+  if (
+    document.getElementById("saved-card") &&
+    document.getElementById("saved-card").value
+  ) {
+    this.form.submit();
+    return;
+  }
+
+  const token = await this.createToken();
+  
+  if (!token) {
+    xcart.trigger("message", {
+      type: "info",
+      message: "Error. Please try again!",
+    });
+    location.reload();
+    return;
+  }
+
+  this.setToken(token);
+  this.form.submit();
 };
 
 CloverPayments.prototype.hostedPaymentEventListeners = function () {
-  const cardResponse = document.getElementById("card-response");
-  const displayCardNumberError = document.getElementById("card-number-errors");
-  const displayCardDateError = document.getElementById("card-date-errors");
-  const displayCardCvvError = document.getElementById("card-cvv-errors");
-  const displayCardPostalCodeError = document.getElementById(
-    "card-postal-code-errors"
-  );
-  const savedCardSelect = document.getElementById("saved-card");
+  const events = {
+    CARD_NUMBER: this.cardNumber,
+    CARD_DATE: this.cardDate,
+    CARD_CVV: this.cardCvv,
+    CARD_POSTAL_CODE: this.cardPostalCode,
+  };
 
-  if (savedCardSelect) {
-    savedCardSelect.addEventListener("change", (e) => {
+  const displayErrors = {
+    CARD_NUMBER: document.getElementById("card-number-errors"),
+    CARD_DATE: document.getElementById("card-date-errors"),
+    CARD_CVV: document.getElementById("card-cvv-errors"),
+    CARD_POSTAL_CODE: document.getElementById("card-postal-code-errors"),
+  };
+
+  const onEventChange = this.debounce((key, event) => {
+    displayErrors[key].textContent = "";
+    this.validate(event);
+  }, 500);
+
+  const onEventBlur = this.debounce((key, event) => {
+    displayErrors[key].textContent = event[key]?.error || "";
+    this.validate(event);
+  }, 500);
+
+  Object.keys(events).forEach((key) => {
+    events[key].addEventListener("change", onEventChange.bind(this, key));
+    events[key].addEventListener("blur", onEventBlur.bind(this, key));
+  });
+
+  if (document.getElementById("saved-card")) {
+    document.getElementById("saved-card").addEventListener("change", (e) => {
       const cardData = e.target.value;
-      if (!cardData) {
-        document.querySelector("#payment-form").style.display = "block";
-        xcart.trigger("common.shaded");
-        xcart.trigger("checkout.common.block");
-      } else {
+      if (cardData) {
         document.querySelector("#payment-form").style.display = "none";
-        xcart.trigger("common.unshaded");
-        xcart.trigger("checkout.common.unblock");
+
+        this.enableCheckout();
+
+        this.isSavedCardSelected = true;
+      } else {
+        document.querySelector("#payment-form").style.display = "block";
+
+        this.disableCheckout();
+
+        this.isSavedCardSelected = false;
       }
     });
   }
 
-  const isSafeButton = document.querySelector(".save-card-hint");
-
-  if (isSafeButton) {
-    isSafeButton.addEventListener("click", (e) => {
+  if (document.querySelector(".save-card-hint")) {
+    document.querySelector(".save-card-hint").addEventListener("click", (e) => {
       e.preventDefault();
       xcart.trigger("message", {
         type: "info",
-        message: "No real credit cards were saved, only special token on the side of the payment processor, that can be used in this store only. The token instructs payment processor to use a credit card but it doesn't contain any of your credit card details.",
+        message:
+          "No real credit cards were saved, only special token on the side of the payment processor, that can be used in this store only. The token instructs payment processor to use a credit card but it doesn't contain any of your credit card details.",
       });
     });
   }
 
-  // Handle real-time validation errors from the card element
-  this.cardNumber.addEventListener("change", (event) => {
-    displayCardNumberError.textContent = "";
-    this.validate(event);
-  });
+  if (this._boundHandleFormSubmit) {
+    this.form.removeEventListener("submit", this._boundHandleFormSubmit);
+  }
 
-  this.cardNumber.addEventListener("blur", (event) => {
-    displayCardNumberError.textContent = event.CARD_NUMBER.error;
-    this.validate(event);
-  });
-
-  this.cardDate.addEventListener("change", (event) => {
-    displayCardDateError.textContent = "";
-    this.validate(event);
-  });
-
-  this.cardDate.addEventListener("blur", (event) => {
-    displayCardDateError.textContent = event.CARD_DATE.error;
-    this.validate(event);
-  });
-
-  this.cardCvv.addEventListener("change", (event) => {
-    displayCardCvvError.textContent = "";
-    this.validate(event);
-  });
-
-  this.cardCvv.addEventListener("blur", (event) => {
-    displayCardCvvError.textContent = event.CARD_CVV.error;
-    this.validate(event);
-  });
-
-  this.cardPostalCode.addEventListener("change", (event) => {
-    displayCardPostalCodeError.textContent = "";
-    this.validate(event);
-  });
-
-  this.cardPostalCode.addEventListener("blur", (event) => {
-    displayCardPostalCodeError.textContent = event.CARD_POSTAL_CODE.error;
-    this.validate(event);
-  });
-
-  this.form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    if (!jQuery(".payment-form-container").length) {
-      this.form.submit();
-      return;
-    }
-
-    if (
-      !this.cloverSavedCardToken &&
-      document.getElementById("saved-card") &&
-      document.getElementById("saved-card").value
-    ) {
-      this.cloverSavedCardToken = document.getElementById("saved-card").value;
-      
-      this.form.submit();
-      return;
-    }
-    
-    if(!this.cloverPaymentsToken) {
-      this.cloverPaymentsToken = await this.createToken();
-    }
-
-    if (!this.cloverPaymentsToken) {
-      xcart.trigger("message", {
-        type: "info",
-        message: "Error. Please try again!",
-      });
-      location.reload();
-      return;
-    }
-    this.setToken(this.cloverPaymentsToken);
-    this.form.submit();
-  });
+  this._boundHandleFormSubmit = this.handleFormSubmit.bind(this);
+  this.form.addEventListener("submit", this._boundHandleFormSubmit);
 };
 
 function CloverPaymentsView(base, controller) {

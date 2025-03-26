@@ -69,6 +69,10 @@ class Order extends \XLite\Model\Order
     public function getCloverPaymentsCard()
     {
         $transaction = $this->getPaymentTransactions()->last();
+
+        if (!$transaction)
+            return [];
+
         $transactionData = Database::getRepo(XpcTransactionData::class)->findOneBy([
             'transaction' => $transaction->getTransactionId()
         ]);

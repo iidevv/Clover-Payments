@@ -15,6 +15,7 @@ use XLite\Model\Order;
 use Iidev\CloverPayments\Core\APIException;
 use Iidev\CloverPayments\Core\CloverPaymentsAPI;
 use XLite\Model\Order\Status\Payment;
+use XLite\Model\Order\Status\Shipping;
 
 /**
  * CloverPayments processor
@@ -202,8 +203,9 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
         $order->setNotes('Card setup order.');
         $order->setCurrency($currency);
         $order->setTotal(1);
-        $order->setPaymentStatus(Payment::STATUS_PAID);
-
+        $order->setPaymentStatus(Payment::STATUS_QUEUED);
+        $order->setShippingStatus(Shipping::STATUS_NEW);
+        
         $order->create();
 
         $this->transaction = new Transaction();
@@ -243,9 +245,6 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
                 $transaction->getXpcData()->setBillingAddress($data['billing-address']);
                 $transaction->getXpcData()->setUseForRecharges('Y');
 
-                Database::getEM()->persist($transaction);
-                Database::getEM()->flush();
-
                 $maxRetries = 3;
                 $retryCount = 0;
                 $delay = 7000000;
@@ -256,7 +255,6 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
 
                     if ($isRefunded) {
                         $order->setPaymentStatus(Payment::STATUS_REFUNDED);
-                        $order->update();
                         $setupStatus = 1;
                         break;
                     }
@@ -266,24 +264,23 @@ class CloverPayments extends \XLite\Model\Payment\Base\CreditCard
 
                 if ($retryCount === $maxRetries) {
                     $order->setPaymentStatus(Payment::STATUS_AUTHORIZED);
-                    $order->update();
                     $setupStatus = 0;
                 }
             } else {
                 $order->setPaymentStatus(Payment::STATUS_DECLINED);
-                $order->update();
 
                 $setupStatus = 0;
             }
         } catch (\Exception $e) {
-
+            $order->setPaymentStatus(Payment::STATUS_DECLINED);
+            
             $setupStatus = 0;
-
-            $this->getLogger('CloverPayments processCardSetup')->error(__FUNCTION__, [
-                'request' => Request::getInstance()->getData(),
-                'exceptionMessage' => $e->getMessage(),
-            ]);
         }
+
+        Database::getEM()->persist($order);
+        Database::getEM()->persist($transaction);
+        Database::getEM()->flush();
+
         return $setupStatus;
     }
 
